@@ -12,8 +12,7 @@ OBS_MODULE_AUTHOR("FiniteSingularity");
 bool obs_module_load(void)
 {
 	const char *root_path = obs_get_module_data_path(obs_current_module());
-	obs_log(LOG_INFO, "Current root path: %s", root_path);
-	obs_log(LOG_INFO, "YAY!!! plugin loaded successfully (version %s)",
+	obs_log(LOG_INFO, "Loaded- Composite Blur Plugin (version %s)",
 		PLUGIN_VERSION);
 	obs_register_source(&obs_composite_blur);
 

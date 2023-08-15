@@ -35,6 +35,7 @@ if(ENABLE_QT)
 endif()
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/obs-composite-blur-filter.c src/obs-composite-blur-plugin.c
-                                             src/obs-composite-blur-filter.h src/kernel.c src/kernel.h)
+                                             src/obs-composite-blur-filter.h src/kernel.c src/kernel.h
+                                             src/obs-utils.c src/obs-utils.h src/blur/gaussian.c src/blur/gaussian.h)
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
