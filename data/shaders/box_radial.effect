@@ -1,0 +1,64 @@
+#define WEIGHT_SIZE 32
+
+uniform float4x4 ViewProj;
+uniform texture2d image;
+
+uniform float2 uv_size;
+uniform float2 radial_center;
+uniform float radius;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData {
+    float4 pos : POSITION;
+    float2 uv : TEXCOORD0;
+};
+
+VertData mainTransform(VertData v_in)
+{
+    v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+    return v_in;
+}
+
+float4 mainImage(VertData v_in) : TARGET
+{
+    // convert radial center pixel coordinate to uv space
+    float2 radial_center_uv = radial_center/uv_size;
+    // calculate distance (in uv space) between coordinate and radial center.
+    float dist = distance(v_in.uv, radial_center_uv);
+    // calculate unit vector in direction of radial center to coordinate
+    float2 texel_step = normalize(v_in.uv - radial_center_uv)/uv_size;
+
+    // DO THE BLUR
+    // 1. Sample incoming pixel, multiply by weight[0]
+    float4 col = image.Sample(textureSampler, v_in.uv);
+
+    // 2. March out from incoming pixel, multiply by corresponding weight.  One step in
+    //    negative relative direction (step towards center point)
+    for(uint i=1; i<=radius; i++) {
+        float offset = (float)i;
+        col += image.Sample(textureSampler, v_in.uv - (4.0 * offset * texel_step * dist));
+    }
+    // Normalize the color by the total_weight
+    float residual = radius-floor(radius);
+    if(residual > 0.0f) {
+        col += image.Sample(textureSampler, v_in.uv - (4.0 * radius * texel_step * dist)) * residual;
+    }
+    col /= radius + 1;
+    return col;
+}
+
+technique Draw
+{
+    pass
+    {
+        vertex_shader = mainTransform(v_in);
+        pixel_shader = mainImage(v_in);
+    }
+}

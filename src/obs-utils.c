@@ -45,6 +45,41 @@ bool add_source_to_list(void *data, obs_source_t *source)
 	return true;
 }
 
+// Loads the shader file at `effect_file_path` into *effect
+gs_effect_t *load_shader_effect(gs_effect_t *effect,
+				const char *effect_file_path)
+{
+	if (effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(effect);
+		effect = NULL;
+		obs_leave_graphics();
+	}
+	char *shader_text = NULL;
+	struct dstr filename = {0};
+	dstr_cat(&filename, obs_get_module_data_path(obs_current_module()));
+	dstr_cat(&filename, effect_file_path);
+	shader_text = load_shader_from_file(filename.array);
+	char *errors = NULL;
+
+	obs_enter_graphics();
+	effect = gs_effect_create(shader_text, NULL, &errors);
+	obs_leave_graphics();
+
+	bfree(shader_text);
+
+	if (effect == NULL) {
+		obs_log(LOG_WARNING,
+			"[obs-composite-blur] Unable to load .effect file.  Errors:\n%s",
+			(errors == NULL || strlen(errors) == 0 ? "(None)"
+							       : errors));
+		bfree(errors);
+	}
+
+	return effect;
+}
+
+// Performs loading of shader from file.  Properly includes #include directives.
 char *load_shader_from_file(const char *file_name)
 {
 	char *file_ptr = os_quick_read_utf8_file(file_name);

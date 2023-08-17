@@ -8,17 +8,43 @@
 #include <util/platform.h>
 
 #include <stdio.h>
-#include "kernel.h"
 
 #include "obs-utils.h"
 #include "blur/gaussian.h"
+#include "blur/box.h"
+
+#define ALGO_NONE 0
+#define ALGO_NONE_LABEL "None"
+#define ALGO_GAUSSIAN 1
+#define ALGO_GAUSSIAN_LABEL "CompositeBlurFilter.Algorithm.Gaussian"
+#define ALGO_BOX 2
+#define ALGO_BOX_LABEL "CompositeBlurFilter.Algorithm.Box"
+#define ALGO_KAWASE 3
+#define ALGO_KAWASE_LABEL "CompositeBlurFilter.Algorithm.Kawase"
+
+#define TYPE_NONE 0
+#define TYPE_NONE_LABEL "None"
+#define TYPE_AREA 1
+#define TYPE_AREA_LABEL "CompositeBlurFilter.Type.Area"
+#define TYPE_DIRECTIONAL 2
+#define TYPE_DIRECTIONAL_LABEL "CompositeBlurFilter.Type.Directional"
+#define TYPE_ZOOM 3
+#define TYPE_ZOOM_LABEL "CompositeBlurFilter.Type.Zoom"
+#define TYPE_MOTION 4
+#define TYPE_MOTION_LABEL "CompositeBlurFilter.Type.Motion"
+#define TYPE_TILTSHIFT 5
+#define TYPE_TILTSHIFT_LABEL "CompositeBlurFilter.Type.TiltShift"
 
 typedef DARRAY(float) fDarray;
 
 struct composite_blur_filter_data {
 	obs_source_t *context;
+
+	// Effects
 	gs_effect_t *effect;
 	gs_effect_t *composite_effect;
+
+	// Render pipeline
 	bool input_rendered;
 	gs_texrender_t *input_texrender;
 	bool output_rendered;
@@ -38,19 +64,32 @@ struct composite_blur_filter_data {
 
 	struct vec2 uv_size;
 
+	float center_x;
+	float center_y;
+
 	float radius;
+	float radius_last;
 	float angle;
-	const char *blur_algorithm;
-	const char *blur_type;
+	float tilt_shift_bottom;
+	float tilt_shift_top;
+	int blur_algorithm;
+	int blur_algorithm_last;
+	int blur_type;
+	int blur_type_last;
+	int passes;
 	obs_weak_source_t *background;
 	uint32_t width;
 	uint32_t height;
 
+	// Gaussian Kernel
 	fDarray kernel;
 	fDarray offset;
 	size_t kernel_size;
 
+	// Callback Functions
 	void (*video_render)(struct composite_blur_filter_data *filter);
+	void (*load_effect)(struct composite_blur_filter_data *filter);
+	void (*update)(struct composite_blur_filter_data *filter);
 };
 
 static const char *composite_blur_name(void *type_data);
@@ -64,14 +103,20 @@ static void composite_blur_video_tick(void *data, float seconds);
 static obs_properties_t *composite_blur_properties(void *data);
 static void
 composite_blur_reload_effect(struct composite_blur_filter_data *filter);
-static void load_blur_effect(struct composite_blur_filter_data *filter);
 static void load_composite_effect(struct composite_blur_filter_data *filter);
 extern gs_texture_t *blend_composite(gs_texture_t *texture,
 				     struct composite_blur_filter_data *data);
 
-static bool setting_blur_types_modified(obs_properties_t *props,
+static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
+					    obs_property_t *p,
+					    obs_data_t *settings);
+
+static bool setting_blur_types_modified(void *data, obs_properties_t *props,
 					obs_property_t *p,
 					obs_data_t *settings);
+static void setting_visibility(const char *prop_name, bool visible,
+			       obs_properties_t *props);
 static bool settings_blur_area(obs_properties_t *props);
 static bool settings_blur_directional(obs_properties_t *props);
 static bool settings_blur_zoom(obs_properties_t *props);
+static bool settings_blur_tilt_shift(obs_properties_t *props);

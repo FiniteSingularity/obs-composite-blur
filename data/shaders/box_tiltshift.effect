@@ -1,0 +1,70 @@
+uniform float4x4 ViewProj;
+
+uniform texture2d image;
+
+uniform float2 texel_step;
+uniform float radius;
+uniform float bottom;
+uniform float top;
+
+uniform float2 uv_size;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData {
+    float4 pos : POSITION;
+    float2 uv : TEXCOORD0;
+};
+
+VertData mainTransform(VertData v_in)
+{
+    v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+    return v_in;
+}
+
+float4 mainImage(VertData v_in) : TARGET
+{
+    // DO THE BLUR
+    // 1. Sample incoming pixel
+    float4 col = image.Sample(textureSampler, v_in.uv);
+    // if in the focused zone, return original pixel.
+    if(v_in.uv.y < bottom && v_in.uv.y > top) {
+        return col;
+    }
+
+    // THIS ASSUMES HORIZONTAL FOCUS ZONE
+    float dist_top = top - v_in.uv.y;
+    float dist_bot = v_in.uv.y - bottom;
+    float dist = max(dist_top, dist_bot);
+
+    // 2. March out from incoming pixel, add surrounding pixels to color
+    [loop] for(int i=1; i<=(int)radius; i++) {
+        float offset = (float)i;
+        col += image.Sample(textureSampler, v_in.uv + (dist * offset * texel_step));
+        col += image.Sample(textureSampler, v_in.uv - (dist * offset * texel_step));
+    }
+    float residual = radius-floor(radius);
+    if(residual > 0.0f) {
+        col += image.Sample(textureSampler, v_in.uv + (dist * radius * texel_step)) * residual;
+        col += image.Sample(textureSampler, v_in.uv - (dist * radius * texel_step)) * residual;
+
+    }
+    // // 3. Normalize the color with the total number of samples
+    col /= (2.0f * radius + 1.0f);
+    return col;
+}
+
+technique Draw
+{
+    pass
+    {
+        vertex_shader = mainTransform(v_in);
+        pixel_shader = mainImage(v_in);
+    }
+}

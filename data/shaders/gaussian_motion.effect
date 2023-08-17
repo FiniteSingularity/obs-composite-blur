@@ -1,0 +1,64 @@
+#define WEIGHT_SIZE 32
+
+uniform float4x4 ViewProj;
+uniform texture2d image;
+
+uniform float2 uv_size;
+uniform float2 texel_step;
+uniform float4 offset[WEIGHT_SIZE];
+uniform float4 weight[WEIGHT_SIZE];
+uniform int kernel_size;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData {
+    float4 pos : POSITION;
+    float2 uv : TEXCOORD0;
+};
+
+float weightLookup(uint i) {
+    return weight[i/4u][i%4u];
+}
+
+float offsetLookup(uint i) {
+    return offset[i/4u][i%4u];
+}
+
+VertData mainTransform(VertData v_in)
+{
+    v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+    return v_in;
+}
+
+float4 mainImage(VertData v_in) : TARGET
+{
+    // DO THE BLUR
+    // 1. Sample incoming pixel, multiply by weight[0]
+    float4 col = image.Sample(textureSampler, v_in.uv) * weightLookup(0);
+    float total_weight = weightLookup(0);
+
+    // 2. March out from incoming pixel, multiply by corresponding weight.
+    for(uint i=1; i<kernel_size; i++) {
+        float weight = weightLookup(i);
+        float offset = offsetLookup(i);
+        total_weight += weight;
+        col += image.Sample(textureSampler, v_in.uv - (offset * texel_step)) * weight;
+    }
+    col /= total_weight;
+    return col;
+}
+
+technique Draw
+{
+    pass
+    {
+        vertex_shader = mainTransform(v_in);
+        pixel_shader = mainImage(v_in);
+    }
+}
