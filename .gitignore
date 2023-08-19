@@ -7,6 +7,7 @@
 !/cmake
 !/data
 !/src
+!/media
 !.clang-format
 !.cmake-format.json
 !.gitignore
@@ -15,6 +16,8 @@
 !CMakePresets.json
 !LICENSE
 !README.md
+!installer.iss.in
+!resource.rc.in
 
 # Exclude lock files
 *.lock.json

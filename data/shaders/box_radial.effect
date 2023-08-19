@@ -1,5 +1,4 @@
-#define WEIGHT_SIZE 32
-
+#define MAX_RADIUS 128u
 uniform float4x4 ViewProj;
 uniform texture2d image;
 
@@ -33,24 +32,31 @@ float4 mainImage(VertData v_in) : TARGET
     // calculate distance (in uv space) between coordinate and radial center.
     float dist = distance(v_in.uv, radial_center_uv);
     // calculate unit vector in direction of radial center to coordinate
+    // scale by uv size to get unit vector in pixels.
     float2 texel_step = normalize(v_in.uv - radial_center_uv)/uv_size;
 
-    // DO THE BLUR
+    float blur_radius = 2.0f * dist * radius;
+
     // 1. Sample incoming pixel, multiply by weight[0]
     float4 col = image.Sample(textureSampler, v_in.uv);
 
     // 2. March out from incoming pixel, multiply by corresponding weight.  One step in
     //    negative relative direction (step towards center point)
-    for(uint i=1; i<=radius; i++) {
-        float offset = (float)i;
-        col += image.Sample(textureSampler, v_in.uv - (4.0 * offset * texel_step * dist));
+    for(uint i=1u; i<=MAX_RADIUS; i+=2u) {
+        if(i+1u > blur_radius) {
+            break;
+        }
+        float offset = float(i)+0.5f;
+        col += 2.0*image.Sample(textureSampler, v_in.uv - (offset * texel_step));
     }
-    // Normalize the color by the total_weight
-    float residual = radius-floor(radius);
-    if(residual > 0.0f) {
-        col += image.Sample(textureSampler, v_in.uv - (4.0 * radius * texel_step * dist)) * residual;
-    }
-    col /= radius + 1;
+    
+    float fradius = floor(blur_radius);
+    float residual = blur_radius-(fradius-float(int(fradius)%2));
+
+    float offset = (blur_radius - residual/2.0f);
+    col += image.Sample(textureSampler, v_in.uv - (offset * texel_step)) * residual;
+
+    col /= blur_radius + 1.0f;
     return col;
 }
 

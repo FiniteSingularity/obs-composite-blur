@@ -1,7 +1,6 @@
 #pragma once
 
 #include <obs-module.h>
-#include <plugin-support.h>
 #include <util/base.h>
 #include <util/dstr.h>
 #include <util/darray.h>
@@ -10,8 +9,6 @@
 #include <stdio.h>
 
 #include "obs-utils.h"
-#include "blur/gaussian.h"
-#include "blur/box.h"
 
 #define ALGO_NONE 0
 #define ALGO_NONE_LABEL "None"
@@ -36,6 +33,9 @@
 #define TYPE_TILTSHIFT_LABEL "CompositeBlurFilter.Type.TiltShift"
 
 typedef DARRAY(float) fDarray;
+
+struct composite_blur_filter_data;
+typedef struct composite_blur_filter_data composite_blur_filter_data_t;
 
 struct composite_blur_filter_data {
 	obs_source_t *context;
@@ -87,9 +87,9 @@ struct composite_blur_filter_data {
 	size_t kernel_size;
 
 	// Callback Functions
-	void (*video_render)(struct composite_blur_filter_data *filter);
-	void (*load_effect)(struct composite_blur_filter_data *filter);
-	void (*update)(struct composite_blur_filter_data *filter);
+	void (*video_render)(composite_blur_filter_data_t *filter);
+	void (*load_effect)(composite_blur_filter_data_t *filter);
+	void (*update)(composite_blur_filter_data_t *filter);
 };
 
 static const char *composite_blur_name(void *type_data);
@@ -101,11 +101,10 @@ static void composite_blur_update(void *data, obs_data_t *settings);
 static void composite_blur_video_render(void *data, gs_effect_t *effect);
 static void composite_blur_video_tick(void *data, float seconds);
 static obs_properties_t *composite_blur_properties(void *data);
-static void
-composite_blur_reload_effect(struct composite_blur_filter_data *filter);
-static void load_composite_effect(struct composite_blur_filter_data *filter);
+static void composite_blur_reload_effect(composite_blur_filter_data_t *filter);
+static void load_composite_effect(composite_blur_filter_data_t *filter);
 extern gs_texture_t *blend_composite(gs_texture_t *texture,
-				     struct composite_blur_filter_data *data);
+				     composite_blur_filter_data_t *data);
 
 static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 					    obs_property_t *p,

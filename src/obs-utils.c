@@ -1,4 +1,4 @@
-#include <obs-utils.h>
+#include "obs-utils.h"
 
 gs_texrender_t *create_or_reset_texrender(gs_texrender_t *render)
 {
@@ -69,10 +69,10 @@ gs_effect_t *load_shader_effect(gs_effect_t *effect,
 	bfree(shader_text);
 
 	if (effect == NULL) {
-		obs_log(LOG_WARNING,
-			"[obs-composite-blur] Unable to load .effect file.  Errors:\n%s",
-			(errors == NULL || strlen(errors) == 0 ? "(None)"
-							       : errors));
+		blog(LOG_WARNING,
+		     "[obs-composite-blur] Unable to load .effect file.  Errors:\n%s",
+		     (errors == NULL || strlen(errors) == 0 ? "(None)"
+							    : errors));
 		bfree(errors);
 	}
 

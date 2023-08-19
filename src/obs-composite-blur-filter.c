@@ -1,4 +1,7 @@
-#include <obs-composite-blur-filter.h>
+#include "obs-composite-blur-filter.h"
+
+#include "blur/gaussian.h"
+#include "blur/box.h"
 
 struct obs_source_info obs_composite_blur = {
 	.id = "obs_composite_blur",
@@ -22,12 +25,13 @@ static const char *composite_blur_name(void *unused)
 
 static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 {
-	struct composite_blur_filter_data *filter =
-		bzalloc(sizeof(struct composite_blur_filter_data));
+	composite_blur_filter_data_t *filter =
+		bzalloc(sizeof(composite_blur_filter_data_t));
 	filter->context = source;
 	filter->radius = 0.0f;
 	filter->radius_last = -1.0f;
 	filter->angle = 0.0f;
+	filter->passes = 1;
 	filter->center_x = 0.0f;
 	filter->center_y = 0.0f;
 	filter->blur_algorithm = ALGO_NONE;
@@ -95,13 +99,11 @@ static uint32_t composite_blur_height(void *data)
 static void composite_blur_update(void *data, obs_data_t *settings)
 {
 	struct composite_blur_filter_data *filter = data;
-	obs_log(LOG_INFO, "Composite Blur Update");
 
 	filter->blur_algorithm =
 		(int)obs_data_get_int(settings, "blur_algorithm");
 
 	if (filter->blur_algorithm != filter->blur_algorithm_last) {
-		obs_log(LOG_INFO, "Blur algorithm changed.");
 		filter->blur_algorithm_last = filter->blur_algorithm;
 		filter->reload = true;
 	}
@@ -109,7 +111,6 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 	filter->blur_type = (int)obs_data_get_int(settings, "blur_type");
 
 	if (filter->blur_type != filter->blur_type_last) {
-		obs_log(LOG_INFO, "Blur type changed.");
 		filter->blur_type_last = filter->blur_type;
 		filter->reload = true;
 	}
@@ -138,10 +139,8 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		filter->background = NULL;
 	}
 
-	obs_log(LOG_INFO, "UPDATE, Algo: %i", filter->blur_algorithm);
 	if (filter->reload) {
 		filter->reload = false;
-		obs_log(LOG_INFO, "UPDATE, reload: %i", filter->reload);
 		composite_blur_reload_effect(filter);
 		obs_source_update_properties(filter->context);
 	}
@@ -151,7 +150,7 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 	}
 }
 
-static void get_input_source(struct composite_blur_filter_data *filter)
+static void get_input_source(composite_blur_filter_data_t *filter)
 {
 	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 
@@ -175,7 +174,7 @@ static void get_input_source(struct composite_blur_filter_data *filter)
 	}
 }
 
-static void draw_output_to_source(struct composite_blur_filter_data *filter)
+static void draw_output_to_source(composite_blur_filter_data_t *filter)
 {
 	gs_texture_t *texture =
 		gs_texrender_get_texture(filter->output_texrender);
@@ -225,14 +224,19 @@ static obs_properties_t *composite_blur_properties(void *data)
 		props, "blur_algorithm",
 		obs_module_text("CompositeBlurFilter.BlurAlgorithm"),
 		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+
+#ifdef _WIN32
+	// Gaussian currently only works on Windows/Direct3D
 	obs_property_list_add_int(blur_algorithms,
 				  obs_module_text(ALGO_GAUSSIAN_LABEL),
 				  ALGO_GAUSSIAN);
+#endif
+
 	obs_property_list_add_int(blur_algorithms,
 				  obs_module_text(ALGO_BOX_LABEL), ALGO_BOX);
-	obs_property_list_add_int(blur_algorithms,
-				  obs_module_text(ALGO_KAWASE_LABEL),
-				  ALGO_KAWASE);
+	// obs_property_list_add_int(blur_algorithms,
+	// 			  obs_module_text(ALGO_KAWASE_LABEL),
+	// 			  ALGO_KAWASE);
 	obs_property_set_modified_callback2(
 		blur_algorithms, setting_blur_algorithm_modified, data);
 
@@ -299,8 +303,6 @@ static obs_properties_t *composite_blur_properties(void *data)
 		obs_module_text("CompositeBlurFilter.TiltShift"),
 		OBS_GROUP_NORMAL, tilt_shift_bounds);
 
-	struct dstr sources_name = {0};
-
 	obs_property_t *p = obs_properties_add_list(
 		props, "background",
 		obs_module_text("CompositeBlurFilter.Background"),
@@ -316,7 +318,8 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 					    obs_property_t *p,
 					    obs_data_t *settings)
 {
-	struct composite_blur_filter_data *filter = data;
+	UNUSED_PARAMETER(p);
+	UNUSED_PARAMETER(data);
 	int blur_algorithm = (int)obs_data_get_int(settings, "blur_algorithm");
 	switch (blur_algorithm) {
 	case ALGO_GAUSSIAN:
@@ -337,7 +340,8 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 static bool setting_blur_types_modified(void *data, obs_properties_t *props,
 					obs_property_t *p, obs_data_t *settings)
 {
-	struct composite_blur_filter_data *filter = data;
+	UNUSED_PARAMETER(p);
+	UNUSED_PARAMETER(data);
 	int blur_type = (int)obs_data_get_int(settings, "blur_type");
 	if (blur_type == TYPE_AREA) {
 		return settings_blur_area(props);
@@ -403,7 +407,8 @@ static bool settings_blur_tilt_shift(obs_properties_t *props)
 
 static void composite_blur_video_tick(void *data, float seconds)
 {
-	struct composite_blur_filter_data *filter = data;
+	UNUSED_PARAMETER(seconds);
+	composite_blur_filter_data_t *filter = data;
 	obs_source_t *target = obs_filter_get_target(filter->context);
 	if (!target) {
 		return;
@@ -414,10 +419,8 @@ static void composite_blur_video_tick(void *data, float seconds)
 	filter->uv_size.y = (float)filter->height;
 }
 
-static void
-composite_blur_reload_effect(struct composite_blur_filter_data *filter)
+static void composite_blur_reload_effect(composite_blur_filter_data_t *filter)
 {
-	obs_log(LOG_INFO, "Reload...");
 	filter->reload = false;
 	obs_data_t *settings = obs_source_get_settings(filter->context);
 	filter->param_uv_size = NULL;
@@ -436,7 +439,7 @@ composite_blur_reload_effect(struct composite_blur_filter_data *filter)
 	obs_data_release(settings);
 }
 
-static void load_composite_effect(struct composite_blur_filter_data *filter)
+static void load_composite_effect(composite_blur_filter_data_t *filter)
 {
 	if (filter->composite_effect != NULL) {
 		obs_enter_graphics();
@@ -458,10 +461,10 @@ static void load_composite_effect(struct composite_blur_filter_data *filter)
 
 	bfree(shader_text);
 	if (filter->composite_effect == NULL) {
-		obs_log(LOG_WARNING,
-			"[obs-composite-blur] Unable to load composite.effect file.  Errors:\n%s",
-			(errors == NULL || strlen(errors) == 0 ? "(None)"
-							       : errors));
+		blog(LOG_WARNING,
+		     "[obs-composite-blur] Unable to load composite.effect file.  Errors:\n%s",
+		     (errors == NULL || strlen(errors) == 0 ? "(None)"
+							    : errors));
 		bfree(errors);
 	} else {
 		size_t effect_count =

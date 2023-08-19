@@ -1,6 +1,6 @@
 #pragma once
 #include <obs-module.h>
-#include <plugin-support.h>
+
 #include <util/base.h>
 #include <util/dstr.h>
 #include <util/darray.h>

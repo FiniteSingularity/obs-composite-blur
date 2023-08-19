@@ -1,3 +1,5 @@
+#define MAX_RADIUS 128u
+
 uniform float4x4 ViewProj;
 
 uniform texture2d image;
@@ -44,8 +46,11 @@ float4 mainImage(VertData v_in) : TARGET
     float dist = max(dist_top, dist_bot);
 
     // 2. March out from incoming pixel, add surrounding pixels to color
-    [loop] for(int i=1; i<=(int)radius; i++) {
-        float offset = (float)i;
+    for(uint i=1u; i<=MAX_RADIUS; i++) {
+        if(i > radius) {
+            break;
+        }
+        float offset = float(i);
         col += image.Sample(textureSampler, v_in.uv + (dist * offset * texel_step));
         col += image.Sample(textureSampler, v_in.uv - (dist * offset * texel_step));
     }
