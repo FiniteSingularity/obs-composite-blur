@@ -6,8 +6,9 @@ uniform texture2d image;
 
 uniform float2 texel_step;
 uniform float radius;
-uniform float bottom;
-uniform float top;
+uniform float focus_center;
+uniform float focus_width; // Half the focus zone thickness
+uniform float focus_angle;
 
 uniform float2 uv_size;
 
@@ -32,36 +33,43 @@ VertData mainTransform(VertData v_in)
 
 float4 mainImage(VertData v_in) : TARGET
 {
+    // Rotate about angle:
+    float2x2 rot = float2x2(cos(focus_angle), sin(focus_angle), -sin(focus_angle), cos(focus_angle));
+    float2 uv_prime = mul(rot, v_in.uv*uv_size - 0.5*uv_size) / uv_size.y + 0.5f - focus_center;
+
+    float dist = abs(uv_prime.y);
+
     // DO THE BLUR
     // 1. Sample incoming pixel
     float4 col = image.Sample(textureSampler, v_in.uv);
     // if in the focused zone, return original pixel.
-    if(v_in.uv.y < bottom && v_in.uv.y > top) {
+    if(dist < focus_width) {
         return col;
     }
 
-    // THIS ASSUMES HORIZONTAL FOCUS ZONE
-    float dist_top = top - v_in.uv.y;
-    float dist_bot = v_in.uv.y - bottom;
-    float dist = max(dist_top, dist_bot);
+    float scaled_radius = (dist-focus_width) * radius;
 
     // 2. March out from incoming pixel, add surrounding pixels to color
-    for(uint i=1u; i<=MAX_RADIUS; i++) {
-        if(i > radius) {
+    for(uint i=1u; i<=MAX_RADIUS; i+=2u) {
+        if(i+1u > scaled_radius) {
             break;
         }
-        float offset = float(i);
-        col += image.Sample(textureSampler, v_in.uv + (dist * offset * texel_step));
-        col += image.Sample(textureSampler, v_in.uv - (dist * offset * texel_step));
+        float offset = float(i) + 0.5f;
+        col += 2.0f*image.Sample(textureSampler, v_in.uv + (offset * texel_step));
+        col += 2.0f*image.Sample(textureSampler, v_in.uv - (offset * texel_step));
     }
-    float residual = radius-floor(radius);
+
+    float fradius = floor(scaled_radius);
+    float residual = scaled_radius-(fradius-float(int(fradius)%2));
+
     if(residual > 0.0f) {
-        col += image.Sample(textureSampler, v_in.uv + (dist * radius * texel_step)) * residual;
-        col += image.Sample(textureSampler, v_in.uv - (dist * radius * texel_step)) * residual;
+        float offset = (scaled_radius - residual/2.0f);
+        col += image.Sample(textureSampler, v_in.uv + (offset * texel_step)) * residual;
+        col += image.Sample(textureSampler, v_in.uv - (offset * texel_step)) * residual;
 
     }
-    // // 3. Normalize the color with the total number of samples
-    col /= (2.0f * radius + 1.0f);
+    // 3. Normalize the color with the total number of samples
+    col /= (2.0f * scaled_radius + 1.0f);
     return col;
 }
 

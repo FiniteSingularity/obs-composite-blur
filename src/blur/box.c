@@ -282,15 +282,22 @@ static void box_tilt_shift_blur(composite_blur_filter_data_t *data)
 			gs_effect_get_param_by_name(effect, "radius");
 		gs_effect_set_float(radius_param, radius);
 
-		const float bottom = 1.0f - (float)data->tilt_shift_bottom;
-		gs_eparam_t *bottom_param =
-			gs_effect_get_param_by_name(effect, "bottom");
-		gs_effect_set_float(bottom_param, bottom);
+		const float focus_center =
+			1.0f - (float)data->tilt_shift_center;
+		gs_eparam_t *focus_center_param =
+			gs_effect_get_param_by_name(effect, "focus_center");
+		gs_effect_set_float(focus_center_param, focus_center);
 
-		const float top = (float)data->tilt_shift_top;
-		gs_eparam_t *top_param =
-			gs_effect_get_param_by_name(effect, "top");
-		gs_effect_set_float(top_param, top);
+		const float focus_width = (float)data->tilt_shift_width / 2.0f;
+		gs_eparam_t *focus_width_param =
+			gs_effect_get_param_by_name(effect, "focus_width");
+		gs_effect_set_float(focus_width_param, focus_width);
+
+		const float focus_angle =
+			(float)data->tilt_shift_angle * (3.14159f / 180.0f);
+		gs_eparam_t *focus_angle_param =
+			gs_effect_get_param_by_name(effect, "focus_angle");
+		gs_effect_set_float(focus_angle_param, focus_angle);
 
 		gs_eparam_t *texel_step =
 			gs_effect_get_param_by_name(effect, "texel_step");
