@@ -6,8 +6,9 @@ uniform texture2d image;
 
 uniform float2 texel_step;
 uniform float radius;
-uniform float bottom;
-uniform float top;
+uniform float focus_center;
+uniform float focus_width; // Half the focus zone thickness
+uniform float focus_angle;
 
 uniform float2 uv_size;
 
@@ -32,20 +33,21 @@ VertData mainTransform(VertData v_in)
 
 float4 mainImage(VertData v_in) : TARGET
 {
+    // Rotate about angle:
+    float2x2 rot = float2x2(cos(focus_angle), sin(focus_angle), -sin(focus_angle), cos(focus_angle));
+    float2 uv_prime = mul(rot, v_in.uv*uv_size - 0.5*uv_size) / uv_size.y + 0.5f - focus_center;
+
+    float dist = abs(uv_prime.y);
+
     // DO THE BLUR
     // 1. Sample incoming pixel
     float4 col = image.Sample(textureSampler, v_in.uv);
     // if in the focused zone, return original pixel.
-    if(v_in.uv.y < bottom && v_in.uv.y > top) {
+    if(dist < focus_width) {
         return col;
     }
 
-    // THIS ASSUMES HORIZONTAL FOCUS ZONE
-    float dist_top = top - v_in.uv.y;
-    float dist_bot = v_in.uv.y - bottom;
-    float dist = max(dist_top, dist_bot);
-
-    float scaled_radius = dist * radius;
+    float scaled_radius = (dist-focus_width) * radius;
 
     // 2. March out from incoming pixel, add surrounding pixels to color
     for(uint i=1u; i<=MAX_RADIUS; i+=2u) {

@@ -70,8 +70,9 @@ struct composite_blur_filter_data {
 	float radius;
 	float radius_last;
 	float angle;
-	float tilt_shift_bottom;
-	float tilt_shift_top;
+	float tilt_shift_center;
+	float tilt_shift_width;
+	float tilt_shift_angle;
 	int blur_algorithm;
 	int blur_algorithm_last;
 	int blur_type;

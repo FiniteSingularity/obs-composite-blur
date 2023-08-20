@@ -122,10 +122,12 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 	filter->center_y = (float)obs_data_get_double(settings, "center_y");
 
 	filter->angle = (float)obs_data_get_double(settings, "angle");
-	filter->tilt_shift_bottom =
-		(float)obs_data_get_double(settings, "tilt_shift_bottom");
-	filter->tilt_shift_top =
-		(float)obs_data_get_double(settings, "tilt_shift_top");
+	filter->tilt_shift_center =
+		(float)obs_data_get_double(settings, "tilt_shift_center");
+	filter->tilt_shift_width =
+		(float)obs_data_get_double(settings, "tilt_shift_width");
+	filter->tilt_shift_angle =
+		(float)obs_data_get_double(settings, "tilt_shift_angle");
 
 	const char *source_name = obs_data_get_string(settings, "background");
 	obs_source_t *source = (source_name && strlen(source_name))
@@ -290,12 +292,16 @@ static obs_properties_t *composite_blur_properties(void *data)
 
 	obs_properties_t *tilt_shift_bounds = obs_properties_create();
 	obs_properties_add_float_slider(
-		tilt_shift_bounds, "tilt_shift_top",
-		obs_module_text("CompositeBlurFilter.TiltShift.Top"), 0.0, 1.0,
-		0.01);
+		tilt_shift_bounds, "tilt_shift_center",
+		obs_module_text("CompositeBlurFilter.TiltShift.Center"), 0.0,
+		1.0, 0.01);
 	obs_properties_add_float_slider(
-		tilt_shift_bounds, "tilt_shift_bottom",
-		obs_module_text("CompositeBlurFilter.TiltShift.Bottom"), 0.0,
+		tilt_shift_bounds, "tilt_shift_angle",
+		obs_module_text("CompositeBlurFilter.TiltShift.Angle"), -180.0,
+		180.0, 0.1);
+	obs_properties_add_float_slider(
+		tilt_shift_bounds, "tilt_shift_width",
+		obs_module_text("CompositeBlurFilter.TiltShift.Width"), 0.0,
 		1.0, 0.01);
 
 	obs_properties_add_group(
