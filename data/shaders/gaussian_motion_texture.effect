@@ -1,0 +1,68 @@
+// This verison of gaussian motion uses a texture to store the weight
+// and offset data, rather than an array, as OBS does not seem to
+// properly transfer array data to shaders on OpenGL systems.
+// The kernel_texture input has as its red channel the kernel weights
+// and offset values as its green channel.
+
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform texture2d kernel_texture;
+
+uniform float2 uv_size;
+uniform float2 texel_step;
+uniform int kernel_size;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+sampler_state tableSampler{
+    Filter = Point;
+    AddressU = Clamp;
+    AddressV = Clamp;
+};
+
+struct VertData {
+    float4 pos : POSITION;
+    float2 uv : TEXCOORD0;
+};
+
+VertData mainTransform(VertData v_in)
+{
+    v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+    return v_in;
+}
+
+float4 mainImage(VertData v_in) : TARGET
+{
+    // DO THE BLUR
+    // 1. Sample incoming pixel, multiply by weight[0]
+    float weight = kernel_texture.Sample(tableSampler, float2(0.0f, 0.0f))[0];
+    float4 col = image.Sample(textureSampler, v_in.uv) * weight;
+    float total_weight = weight;
+
+    // 2. March out from incoming pixel, multiply by corresponding weight.
+    for(uint i=1u; i<uint(kernel_size); i++) {
+        float table_u = float(i)/(float(kernel_size)-1.0f);
+        float4 kernel_values = kernel_texture.Sample(tableSampler, float2(table_u, 0.0f));
+        weight = kernel_values[0];
+        float offset = kernel_values[1];
+        total_weight += weight;
+        col += image.Sample(textureSampler, v_in.uv - (offset * texel_step)) * weight;
+    }
+    col /= total_weight;
+    return col;
+}
+
+technique Draw
+{
+    pass
+    {
+        vertex_shader = mainTransform(v_in);
+        pixel_shader = mainImage(v_in);
+    }
+}

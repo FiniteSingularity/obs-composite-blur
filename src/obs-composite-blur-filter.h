@@ -85,6 +85,7 @@ struct composite_blur_filter_data {
 	// Gaussian Kernel
 	fDarray kernel;
 	fDarray offset;
+	gs_texture_t *kernel_texture;
 	size_t kernel_size;
 
 	// Callback Functions
