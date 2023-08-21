@@ -3,8 +3,8 @@ uniform texture2d image;
 uniform texture2d kernel_texture;
 
 uniform float2 uv_size;
-uniform float2 texel_step;
 uniform int kernel_size;
+uniform float2 radial_center;
 
 sampler_state textureSampler{
     Filter = Linear;
@@ -33,25 +33,30 @@ VertData mainTransform(VertData v_in)
 
 float4 mainImage(VertData v_in) : TARGET
 {
+    // convert radial center pixel coordinate to uv space
+    float2 radial_center_uv = radial_center/uv_size;
+    // calculate distance (in uv space) between coordinate and radial center.
+    float dist = distance(v_in.uv, radial_center_uv);
+    // calculate unit vector in direction of radial center to coordinate
+    float2 texel_step = normalize(v_in.uv - radial_center_uv)/uv_size;
+
     // DO THE BLUR
     // 1. Sample incoming pixel, multiply by weight[0]
-    // float4 test = kernel_texture.Sample(tableSampler, float2(v_in.uv[0], 0.0));
-    // float max_radius = kernel_texture.Sample(tableSampler, float2(1.0, 0.0))[1];
-    // return float4(test.g/max_radius, test.g/max_radius, test.g/max_radius, 1.0);
     float weight = kernel_texture.Sample(tableSampler, float2(0.0f, 0.0f))[0];
     float4 col = image.Sample(textureSampler, v_in.uv) * weight;
     float total_weight = weight;
 
-    // 2. March out from incoming pixel, multiply by corresponding weight.
+    // 2. March out from incoming pixel, multiply by corresponding weight.  One step in
+    //    negative relative direction (step towards center point)
     for(uint i=1u; i<uint(kernel_size); i++) {
         float table_u = float(i)/(float(kernel_size)-1.0f);
         float4 kernel_values = kernel_texture.Sample(tableSampler, float2(table_u, 0.0f));
         weight = kernel_values[0];
         float offset = kernel_values[1];
-        total_weight += 2.0f*weight;
-        col += image.Sample(textureSampler, v_in.uv + (offset * texel_step)) * weight;
-        col += image.Sample(textureSampler, v_in.uv - (offset * texel_step)) * weight;
+        total_weight += weight;
+        col += image.Sample(textureSampler, v_in.uv - (4.0 * offset * texel_step * dist)) * weight;
     }
+    // Normalize the color by the total_weight
     col /= total_weight;
     return col;
 }

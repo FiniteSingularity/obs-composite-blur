@@ -171,6 +171,7 @@ static void gaussian_directional_blur(composite_blur_filter_data_t *data)
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
+#ifdef _WIN32
 	gs_eparam_t *weight = gs_effect_get_param_by_name(effect, "weight");
 
 	gs_effect_set_val(weight, data->kernel.array,
@@ -179,6 +180,11 @@ static void gaussian_directional_blur(composite_blur_filter_data_t *data)
 	gs_eparam_t *offset = gs_effect_get_param_by_name(effect, "offset");
 	gs_effect_set_val(offset, data->offset.array,
 			  data->offset.num * sizeof(float));
+#else
+	gs_eparam_t *kernel_texture =
+		gs_effect_get_param_by_name(effect, "kernel_texture");
+	gs_effect_set_texture(kernel_texture, data->kernel_texture);
+#endif
 
 	const int k_size = (int)data->kernel_size;
 	gs_eparam_t *kernel_size =
@@ -228,6 +234,7 @@ static void gaussian_motion_blur(composite_blur_filter_data_t *data)
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
+#ifdef _WIN32
 	gs_eparam_t *weight = gs_effect_get_param_by_name(effect, "weight");
 
 	gs_effect_set_val(weight, data->kernel.array,
@@ -236,6 +243,11 @@ static void gaussian_motion_blur(composite_blur_filter_data_t *data)
 	gs_eparam_t *offset = gs_effect_get_param_by_name(effect, "offset");
 	gs_effect_set_val(offset, data->offset.array,
 			  data->offset.num * sizeof(float));
+#else
+	gs_eparam_t *kernel_texture =
+		gs_effect_get_param_by_name(effect, "kernel_texture");
+	gs_effect_set_texture(kernel_texture, data->kernel_texture);
+#endif
 
 	const int k_size = (int)data->kernel_size;
 	gs_eparam_t *kernel_size =
@@ -286,6 +298,7 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
+#ifdef _WIN32
 	gs_eparam_t *weight = gs_effect_get_param_by_name(effect, "weight");
 
 	gs_effect_set_val(weight, data->kernel.array,
@@ -294,6 +307,11 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 	gs_eparam_t *offset = gs_effect_get_param_by_name(effect, "offset");
 	gs_effect_set_val(offset, data->offset.array,
 			  data->offset.num * sizeof(float));
+#else
+	gs_eparam_t *kernel_texture =
+		gs_effect_get_param_by_name(effect, "kernel_texture");
+	gs_effect_set_texture(kernel_texture, data->kernel_texture);
+#endif
 
 	const int k_size = (int)data->kernel_size;
 	gs_eparam_t *kernel_size =
@@ -361,7 +379,11 @@ static void load_1d_gaussian_effect(composite_blur_filter_data_t *filter)
 
 static void load_motion_gaussian_effect(composite_blur_filter_data_t *filter)
 {
+#ifdef _WIN32
 	const char *effect_file_path = "/shaders/gaussian_motion.effect";
+#else
+	const char *effect_file_path = "/shaders/gaussian_motion_texture.effect";
+#endif
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
 		size_t effect_count = gs_effect_get_num_params(filter->effect);
@@ -382,7 +404,11 @@ static void load_motion_gaussian_effect(composite_blur_filter_data_t *filter)
 
 static void load_radial_gaussian_effect(composite_blur_filter_data_t *filter)
 {
+#ifdef _WIN32
 	const char *effect_file_path = "/shaders/gaussian_radial.effect";
+#else
+	const char *effect_file_path = "/shaders/gaussian_radial_texture.effect";
+#endif
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
 		size_t effect_count = gs_effect_get_num_params(filter->effect);
@@ -477,7 +503,6 @@ static void sample_kernel(float radius, composite_blur_filter_data_t *filter)
 
 	DARRAY(float) weight_offset_texture;
 	da_init(weight_offset_texture);
-	const uint8_t pad_i = 0u;
 
 	// 3. Calculate linear sampled weights and offsets
 	da_push_back(weights, &d_weights.array[0]);
@@ -541,6 +566,5 @@ static void sample_kernel(float radius, composite_blur_filter_data_t *filter)
 	if (!filter->kernel_texture) {
 		blog(LOG_INFO, "Gaussian Texture couldn't be created.");
 	}
-
 	obs_leave_graphics();
 }
