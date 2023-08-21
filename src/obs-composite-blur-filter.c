@@ -47,6 +47,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->video_render = NULL;
 	filter->load_effect = NULL;
 	filter->update = NULL;
+	filter->kernel_texture = NULL;
 
 	da_init(filter->kernel);
 
@@ -78,6 +79,10 @@ static void composite_blur_destroy(void *data)
 	}
 	if (filter->output_texrender) {
 		gs_texrender_destroy(filter->output_texrender);
+	}
+
+	if (filter->kernel_texture) {
+		gs_texture_destroy(filter->kernel_texture);
 	}
 
 	obs_leave_graphics();
@@ -227,13 +232,9 @@ static obs_properties_t *composite_blur_properties(void *data)
 		obs_module_text("CompositeBlurFilter.BlurAlgorithm"),
 		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 
-#ifdef _WIN32
-	// Gaussian currently only works on Windows/Direct3D
 	obs_property_list_add_int(blur_algorithms,
 				  obs_module_text(ALGO_GAUSSIAN_LABEL),
 				  ALGO_GAUSSIAN);
-#endif
-
 	obs_property_list_add_int(blur_algorithms,
 				  obs_module_text(ALGO_BOX_LABEL), ALGO_BOX);
 	// obs_property_list_add_int(blur_algorithms,

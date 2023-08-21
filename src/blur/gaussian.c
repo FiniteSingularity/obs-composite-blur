@@ -88,6 +88,7 @@ static void gaussian_area_blur(composite_blur_filter_data_t *data)
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
+#ifdef _WIN32
 	gs_eparam_t *weight = gs_effect_get_param_by_name(effect, "weight");
 
 	gs_effect_set_val(weight, data->kernel.array,
@@ -96,6 +97,11 @@ static void gaussian_area_blur(composite_blur_filter_data_t *data)
 	gs_eparam_t *offset = gs_effect_get_param_by_name(effect, "offset");
 	gs_effect_set_val(offset, data->offset.array,
 			  data->offset.num * sizeof(float));
+#else
+	gs_eparam_t *kernel_texture =
+		gs_effect_get_param_by_name(effect, "kernel_texture");
+	gs_effect_set_texture(kernel_texture, data->kernel_texture);
+#endif
 
 	const int k_size = (int)data->kernel_size;
 	gs_eparam_t *kernel_size =
@@ -107,13 +113,11 @@ static void gaussian_area_blur(composite_blur_filter_data_t *data)
 	struct vec2 direction;
 
 	// 1. First pass- apply 1D blur kernel to horizontal dir.
-
 	direction.x = 1.0f / data->width;
 	direction.y = 0.0f;
 	gs_effect_set_vec2(texel_step, &direction);
 
 	set_blending_parameters();
-	//set_render_parameters();
 
 	if (gs_texrender_begin(data->render2, data->width, data->height)) {
 		while (gs_effect_loop(effect, "Draw"))
@@ -127,6 +131,11 @@ static void gaussian_area_blur(composite_blur_filter_data_t *data)
 	// 3. Second Pass- Apply 1D blur kernel vertically.
 	image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
+
+#ifndef _WIN32
+	kernel_texture = gs_effect_get_param_by_name(effect, "kernel_texture");
+	gs_effect_set_texture(kernel_texture, data->kernel_texture);
+#endif
 
 	direction.x = 0.0f;
 	direction.y = 1.0f / data->height;
@@ -311,7 +320,6 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 	gs_effect_set_vec2(uv_size, &size);
 
 	set_blending_parameters();
-	//set_render_parameters();
 
 	data->output_texrender =
 		create_or_reset_texrender(data->output_texrender);
@@ -328,7 +336,11 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 
 static void load_1d_gaussian_effect(composite_blur_filter_data_t *filter)
 {
+#ifdef _WIN32
 	const char *effect_file_path = "/shaders/gaussian_1d.effect";
+#else
+	const char *effect_file_path = "/shaders/gaussian_1d_texture.effect";
+#endif
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
 		size_t effect_count = gs_effect_get_num_params(filter->effect);
@@ -398,9 +410,6 @@ static void sample_kernel(float radius, composite_blur_filter_data_t *filter)
 	fDarray d_weights;
 	da_init(d_weights);
 
-	fDarray weights;
-	da_init(weights);
-
 	radius *= 3.0f;
 	radius = (float)fmax(fmin(radius, max_radius), min_radius);
 
@@ -443,14 +452,13 @@ static void sample_kernel(float radius, composite_blur_filter_data_t *filter)
 		if (weight > 1.0001f || weight < 0.0f) {
 			blog(LOG_WARNING,
 			     "   === BAD WEIGHT VALUE FOR GAUSSIAN === [%d] %f",
-			     (int)(weights.num + 1), weight);
+			     (int)(d_weights.num + 1), weight);
 			weight = 0.0;
 		}
 		da_push_back(d_weights, &weight);
 	}
 
-	fDarray offsets;
-	da_init(offsets);
+	d_weights.array[0] = (d_weights.array[0]) * 2.0f;
 
 	fDarray d_offsets;
 	da_init(d_offsets);
@@ -461,25 +469,45 @@ static void sample_kernel(float radius, composite_blur_filter_data_t *filter)
 		da_push_back(d_offsets, &val);
 	}
 
+	fDarray weights;
+	da_init(weights);
+
+	fDarray offsets;
+	da_init(offsets);
+
+	DARRAY(float) weight_offset_texture;
+	da_init(weight_offset_texture);
+	const uint8_t pad_i = 0u;
+
 	// 3. Calculate linear sampled weights and offsets
 	da_push_back(weights, &d_weights.array[0]);
 	da_push_back(offsets, &d_offsets.array[0]);
 
+	da_push_back(weight_offset_texture, &d_weights.array[0]);
+	da_push_back(weight_offset_texture, &d_offsets.array[0]);
+
 	for (size_t i = 1; i < d_weights.num - 1; i += 2) {
 		const float weight =
 			d_weights.array[i] + d_weights.array[i + 1];
-		da_push_back(weights, &weight);
 		const float offset =
 			(d_offsets.array[i] * d_weights.array[i] +
 			 d_offsets.array[i + 1] * d_weights.array[i + 1]) /
 			weight;
+
+		da_push_back(weights, &weight);
 		da_push_back(offsets, &offset);
+
+		da_push_back(weight_offset_texture, &weight);
+		da_push_back(weight_offset_texture, &offset);
 	}
 	if (d_weights.num % 2 == 0) {
 		const float weight = d_weights.array[d_weights.num - 1];
 		const float offset = d_offsets.array[d_offsets.num - 1];
 		da_push_back(weights, &weight);
 		da_push_back(offsets, &offset);
+
+		da_push_back(weight_offset_texture, &weight);
+		da_push_back(weight_offset_texture, &offset);
 	}
 
 	// 4. Pad out kernel arrays to length of max_size
@@ -500,4 +528,19 @@ static void sample_kernel(float radius, composite_blur_filter_data_t *filter)
 
 	da_free(filter->offset);
 	filter->offset = offsets;
+
+	obs_enter_graphics();
+	if (filter->kernel_texture) {
+		gs_texture_destroy(filter->kernel_texture);
+	}
+
+	filter->kernel_texture = gs_texture_create(
+		(uint32_t)weight_offset_texture.num / 2u, 1u, GS_RG32F, 1u,
+		(const uint8_t **)&weight_offset_texture.array, 0);
+
+	if (!filter->kernel_texture) {
+		blog(LOG_INFO, "Gaussian Texture couldn't be created.");
+	}
+
+	obs_leave_graphics();
 }
