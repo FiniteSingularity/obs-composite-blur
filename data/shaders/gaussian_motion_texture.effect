@@ -1,4 +1,8 @@
-#define WEIGHT_SIZE 32
+// This verison of gaussian motion uses a texture to store the weight
+// and offset data, rather than an array, as OBS does not seem to
+// properly transfer array data to shaders on OpenGL systems.
+// The kernel_texture input has as its red channel the kernel weights
+// and offset values as its green channel.
 
 uniform float4x4 ViewProj;
 uniform texture2d image;

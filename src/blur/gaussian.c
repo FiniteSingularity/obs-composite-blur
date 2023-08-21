@@ -382,7 +382,8 @@ static void load_motion_gaussian_effect(composite_blur_filter_data_t *filter)
 #ifdef _WIN32
 	const char *effect_file_path = "/shaders/gaussian_motion.effect";
 #else
-	const char *effect_file_path = "/shaders/gaussian_motion_texture.effect";
+	const char *effect_file_path =
+		"/shaders/gaussian_motion_texture.effect";
 #endif
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
@@ -407,7 +408,8 @@ static void load_radial_gaussian_effect(composite_blur_filter_data_t *filter)
 #ifdef _WIN32
 	const char *effect_file_path = "/shaders/gaussian_radial.effect";
 #else
-	const char *effect_file_path = "/shaders/gaussian_radial_texture.effect";
+	const char *effect_file_path =
+		"/shaders/gaussian_radial_texture.effect";
 #endif
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
@@ -554,6 +556,11 @@ static void sample_kernel(float radius, composite_blur_filter_data_t *filter)
 	da_free(filter->offset);
 	filter->offset = offsets;
 
+	// Generate the kernel and offsets as a texture for OpenGL systems
+	// where the red value is the kernel weight and the green value
+	// is the offset value. This is only used for OpenGL systems, and
+	// should probably be macro'd out on windows builds, but generating
+	// the texture is quite cheap.
 	obs_enter_graphics();
 	if (filter->kernel_texture) {
 		gs_texture_destroy(filter->kernel_texture);
