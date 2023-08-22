@@ -354,6 +354,9 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 
 static void load_1d_gaussian_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->effect) {
+		gs_effect_destroy(filter->effect);
+	}
 #ifdef _WIN32
 	const char *effect_file_path = "/shaders/gaussian_1d.effect";
 #else
@@ -379,6 +382,9 @@ static void load_1d_gaussian_effect(composite_blur_filter_data_t *filter)
 
 static void load_motion_gaussian_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->effect) {
+		gs_effect_destroy(filter->effect);
+	}
 #ifdef _WIN32
 	const char *effect_file_path = "/shaders/gaussian_motion.effect";
 #else
@@ -405,6 +411,9 @@ static void load_motion_gaussian_effect(composite_blur_filter_data_t *filter)
 
 static void load_radial_gaussian_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->effect) {
+		gs_effect_destroy(filter->effect);
+	}
 #ifdef _WIN32
 	const char *effect_file_path = "/shaders/gaussian_radial.effect";
 #else

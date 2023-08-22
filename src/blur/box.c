@@ -73,8 +73,8 @@ static void box_area_blur(composite_blur_filter_data_t *data)
 	}
 
 	texture = blend_composite(texture, data);
-
-	for (int i = 0; i < data->passes; i++) {
+	const int passes = data->passes < 1 ? 1 : data->passes;
+	for (int i = 0; i < passes; i++) {
 		data->render2 = create_or_reset_texrender(data->render2);
 
 		gs_eparam_t *image =
@@ -357,6 +357,9 @@ static void box_tilt_shift_blur(composite_blur_filter_data_t *data)
 
 static void load_1d_box_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->effect) {
+		gs_effect_destroy(filter->effect);
+	}
 	const char *effect_file_path = "/shaders/box_1d.effect";
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
@@ -378,6 +381,9 @@ static void load_1d_box_effect(composite_blur_filter_data_t *filter)
 
 static void load_tiltshift_box_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->effect) {
+		gs_effect_destroy(filter->effect);
+	}
 	const char *effect_file_path = "/shaders/box_tiltshift.effect";
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
@@ -399,6 +405,9 @@ static void load_tiltshift_box_effect(composite_blur_filter_data_t *filter)
 
 static void load_radial_box_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->effect) {
+		gs_effect_destroy(filter->effect);
+	}
 	const char *effect_file_path = "/shaders/box_radial.effect";
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
