@@ -1,0 +1,59 @@
+#define SQRT3 1.732050807568877
+
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform float2 uv_size;
+
+uniform float pixel_size;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData {
+    float4 pos : POSITION;
+    float2 uv : TEXCOORD0;
+};
+
+float3 getTriangle(float2 coord) {
+    return float3(
+        ceil(( 1.0f * coord.x - SQRT3 / 3.0f * coord.y) / pixel_size),
+        floor((SQRT3 * 2.0f / 3.0f * coord.y) / pixel_size) + 1.0f,
+        ceil((-coord.x - SQRT3 / 3.0f * coord.y) / pixel_size)
+    );
+}
+
+float2 triangleCenter(float3 triCoord) {
+    return float2(
+        (0.5f * triCoord.x -0.5f * triCoord.z) * pixel_size,
+        (-SQRT3 / 6.0f * triCoord.x + SQRT3 / 3.0f * triCoord.y - SQRT3 / 6.0f * triCoord.z) * pixel_size
+    );
+}
+
+VertData mainTransform(VertData v_in)
+{
+    v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+    return v_in;
+}
+
+float4 mainImage(VertData v_in) : TARGET
+{
+    // 1. Sample incoming pixel
+    float2 coord = v_in.uv * uv_size;
+    float2 sample_coord = triangleCenter(getTriangle(coord));
+    float2 uv_prime = sample_coord/uv_size;
+    return image.Sample(textureSampler, uv_prime);
+}
+
+technique Draw
+{
+    pass
+    {
+        vertex_shader = mainTransform(v_in);
+        pixel_shader = mainImage(v_in);
+    }
+}

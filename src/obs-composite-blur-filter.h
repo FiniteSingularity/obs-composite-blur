@@ -18,6 +18,8 @@
 #define ALGO_BOX_LABEL "CompositeBlurFilter.Algorithm.Box"
 #define ALGO_KAWASE 3
 #define ALGO_KAWASE_LABEL "CompositeBlurFilter.Algorithm.Kawase"
+#define ALGO_PIXELATE 4
+#define ALGO_PIXELATE_LABEL "CompositeBlurFilter.Algorithm.Pixelate"
 
 #define TYPE_NONE 0
 #define TYPE_NONE_LABEL "None"
@@ -31,6 +33,18 @@
 #define TYPE_MOTION_LABEL "CompositeBlurFilter.Type.Motion"
 #define TYPE_TILTSHIFT 5
 #define TYPE_TILTSHIFT_LABEL "CompositeBlurFilter.Type.TiltShift"
+
+#define PIXELATE_TYPE_SQUARE 0
+#define PIXELATE_TYPE_SQUARE_LABEL "CompositeBlurFilter.Pixelate.Square"
+#define PIXELATE_TYPE_HEXAGONAL 1
+#define PIXELATE_TYPE_HEXAGONAL_LABEL "CompositeBlurFilter.Pixelate.Hexagonal"
+#define PIXELATE_TYPE_TRIAKIS 2
+#define PIXELATE_TYPE_TRIAKIS_LABEL "CompositeBlurFilter.Pixelate.Triakis"
+#define PIXELATE_TYPE_CIRCLE 3
+#define PIXELATE_TYPE_CIRCLE_LABEL "CompositeBlurFilter.Pixelate.Circle"
+#define PIXELATE_TYPE_TRIANGLE 4
+#define PIXELATE_TYPE_TRIANGLE_LABEL "CompositeBlurFilter.Pixelate.Triangle"
+
 
 typedef DARRAY(float) fDarray;
 
@@ -78,6 +92,8 @@ struct composite_blur_filter_data {
 	int blur_type;
 	int blur_type_last;
 	int passes;
+	int pixelate_type;
+	int pixelate_type_last;
 	obs_weak_source_t *background;
 	uint32_t width;
 	uint32_t height;

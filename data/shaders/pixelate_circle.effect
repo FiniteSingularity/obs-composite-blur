@@ -1,0 +1,43 @@
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform float2 uv_size;
+
+uniform float pixel_size;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData {
+    float4 pos : POSITION;
+    float2 uv : TEXCOORD0;
+};
+
+VertData mainTransform(VertData v_in)
+{
+    v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+    return v_in;
+}
+
+float4 mainImage(VertData v_in) : TARGET
+{
+    // 1. Sample incoming pixel
+    float2 coord = v_in.uv * uv_size;
+    float2 coord_prime = (coord - fmod(coord, pixel_size)) + pixel_size/2.0f;
+    float2 uv_prime = coord_prime / uv_size;
+    
+    return distance(coord, coord_prime) <= pixel_size/2.0f ? image.Sample(textureSampler, uv_prime) : float4(0.0, 0.0, 0.0, 0.0);
+}
+
+technique Draw
+{
+    pass
+    {
+        vertex_shader = mainTransform(v_in);
+        pixel_shader = mainImage(v_in);
+    }
+}

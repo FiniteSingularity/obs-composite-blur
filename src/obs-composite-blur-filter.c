@@ -2,6 +2,7 @@
 
 #include "blur/gaussian.h"
 #include "blur/box.h"
+#include "blur/pixelate.h"
 
 struct obs_source_info obs_composite_blur = {
 	.id = "obs_composite_blur",
@@ -48,6 +49,8 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->load_effect = NULL;
 	filter->update = NULL;
 	filter->kernel_texture = NULL;
+	filter->pixelate_type = 1;
+	filter->pixelate_type_last = -1;
 
 	da_init(filter->kernel);
 
@@ -117,6 +120,14 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 
 	if (filter->blur_type != filter->blur_type_last) {
 		filter->blur_type_last = filter->blur_type;
+		filter->reload = true;
+	}
+
+	filter->pixelate_type =
+		(int)obs_data_get_int(settings, "pixelate_type");
+
+	if (filter->pixelate_type != filter->pixelate_type_last) {
+		filter->pixelate_type_last = filter->pixelate_type;
 		filter->reload = true;
 	}
 
@@ -240,6 +251,9 @@ static obs_properties_t *composite_blur_properties(void *data)
 	// obs_property_list_add_int(blur_algorithms,
 	// 			  obs_module_text(ALGO_KAWASE_LABEL),
 	// 			  ALGO_KAWASE);
+	obs_property_list_add_int(blur_algorithms,
+				  obs_module_text(ALGO_PIXELATE_LABEL),
+				  ALGO_PIXELATE);
 	obs_property_set_modified_callback2(
 		blur_algorithms, setting_blur_algorithm_modified, data);
 
@@ -261,6 +275,24 @@ static obs_properties_t *composite_blur_properties(void *data)
 				  TYPE_TILTSHIFT);
 	obs_property_set_modified_callback2(blur_types,
 					    setting_blur_types_modified, data);
+
+	obs_property_t *pixelate_types = obs_properties_add_list(
+		props, "pixelate_type",
+		obs_module_text("CompositeBlurFilter.PixelateType"),
+		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+
+	obs_property_list_add_int(pixelate_types,
+				  obs_module_text(PIXELATE_TYPE_SQUARE_LABEL),
+				  PIXELATE_TYPE_SQUARE);
+	obs_property_list_add_int(
+		pixelate_types, obs_module_text(PIXELATE_TYPE_HEXAGONAL_LABEL),
+		PIXELATE_TYPE_HEXAGONAL);
+	obs_property_list_add_int(pixelate_types,
+				  obs_module_text(PIXELATE_TYPE_CIRCLE_LABEL),
+				  PIXELATE_TYPE_CIRCLE);
+	obs_property_list_add_int(pixelate_types,
+				  obs_module_text(PIXELATE_TYPE_TRIANGLE_LABEL),
+				  PIXELATE_TYPE_TRIANGLE);
 
 	obs_properties_add_float_slider(
 		props, "radius", obs_module_text("CompositeBlurFilter.Radius"),
@@ -331,14 +363,25 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 	switch (blur_algorithm) {
 	case ALGO_GAUSSIAN:
 		setting_visibility("passes", false, props);
+		setting_visibility("blur_type", true, props);
+		setting_visibility("pixelate_type", false, props);
 		set_gaussian_blur_types(props);
 		break;
 	case ALGO_BOX:
 		setting_visibility("passes", true, props);
+		setting_visibility("blur_type", true, props);
+		setting_visibility("pixelate_type", false, props);
 		set_box_blur_types(props);
 		break;
 	case ALGO_KAWASE:
 		setting_visibility("passes", false, props);
+		setting_visibility("blur_type", true, props);
+		setting_visibility("pixelate_type", false, props);
+		break;
+	case ALGO_PIXELATE:
+		setting_visibility("passes", false, props);
+		setting_visibility("blur_type", false, props);
+		setting_visibility("pixelate_type", true, props);
 		break;
 	}
 	return true;
@@ -436,6 +479,8 @@ static void composite_blur_reload_effect(composite_blur_filter_data_t *filter)
 		gaussian_setup_callbacks(filter);
 	} else if (filter->blur_algorithm == ALGO_BOX) {
 		box_setup_callbacks(filter);
+	} else if (filter->blur_algorithm == ALGO_PIXELATE) {
+		pixelate_setup_callbacks(filter);
 	}
 
 	if (filter->load_effect) {

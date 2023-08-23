@@ -73,8 +73,8 @@ static void box_area_blur(composite_blur_filter_data_t *data)
 	}
 
 	texture = blend_composite(texture, data);
-
-	for (int i = 0; i < data->passes; i++) {
+	const int passes = data->passes < 1 ? 1 : data->passes;
+	for (int i = 0; i < passes; i++) {
 		data->render2 = create_or_reset_texrender(data->render2);
 
 		gs_eparam_t *image =

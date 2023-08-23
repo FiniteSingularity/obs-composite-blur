@@ -6,7 +6,7 @@ else()
   cmake_minimum_required(VERSION 3.18)
 endif()
 
-project(obs-composite-blur VERSION 0.0.1)
+project(obs-composite-blur VERSION 0.0.3)
 set(PROJECT_FULL_NAME "OBS Composite Blur")
 
 # Set new UUIDs when you start to create a new plugin.
@@ -29,6 +29,8 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/blur/gaussian.h
 	src/blur/box.c
 	src/blur/box.h
+	src/blur/pixelate.c
+	src/blur/pixelate.h
 	src/version.h)
 
 if(BUILD_OUT_OF_TREE)
