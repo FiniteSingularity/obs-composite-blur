@@ -34,8 +34,16 @@ VertData mainTransform(VertData v_in)
 float4 mainImage(VertData v_in) : TARGET
 {
     // Rotate about angle:
-    float2x2 rot = float2x2(cos(focus_angle), sin(focus_angle), -sin(focus_angle), cos(focus_angle));
-    float2 uv_prime = mul(rot, v_in.uv*uv_size - 0.5*uv_size) / uv_size.y + 0.5f - focus_center;
+    // a matrix multiplication is more readable, but does not work on OpenGL
+    // for some reason.
+    //float2x2 rot = float2x2(cos(focus_angle), sin(focus_angle), -sin(focus_angle), cos(focus_angle));
+    //float2 uv_prime = mul(rot, v_in.uv*uv_size - 0.5*uv_size) / uv_size.y + 0.5f - focus_center;
+    float2 coord_norm = v_in.uv*uv_size - 0.5*uv_size;
+    float2 uv_prime = float2(
+        coord_norm.x * cos(focus_angle) + coord_norm.y * sin(focus_angle),
+        -coord_norm.x * sin(focus_angle) + coord_norm.y * cos(focus_angle)
+    )/uv_size.y + 0.5f - focus_center;
+
 
     float dist = abs(uv_prime.y);
 
