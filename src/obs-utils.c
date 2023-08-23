@@ -76,6 +76,8 @@ gs_effect_t *load_shader_effect(gs_effect_t *effect,
 		bfree(errors);
 	}
 
+	dstr_free(&filename);
+
 	return effect;
 }
 
