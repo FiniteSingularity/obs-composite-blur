@@ -45,7 +45,6 @@
 #define PIXELATE_TYPE_TRIANGLE 4
 #define PIXELATE_TYPE_TRIANGLE_LABEL "CompositeBlurFilter.Pixelate.Triangle"
 
-
 typedef DARRAY(float) fDarray;
 
 struct composite_blur_filter_data;
@@ -56,6 +55,7 @@ struct composite_blur_filter_data {
 
 	// Effects
 	gs_effect_t *effect;
+	gs_effect_t *effect_2;
 	gs_effect_t *composite_effect;
 
 	// Render pipeline
@@ -92,6 +92,7 @@ struct composite_blur_filter_data {
 	int blur_type;
 	int blur_type_last;
 	int passes;
+	int kawase_passes;
 	int pixelate_type;
 	int pixelate_type_last;
 	obs_weak_source_t *background;

@@ -39,6 +39,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->blur_algorithm_last = -1;
 	filter->blur_type = TYPE_NONE;
 	filter->blur_type_last = -1;
+	filter->kawase_passes = 1;
 	filter->rendering = false;
 	filter->reload = true;
 	filter->param_uv_size = NULL;
@@ -66,6 +67,9 @@ static void composite_blur_destroy(void *data)
 	obs_enter_graphics();
 	if (filter->effect) {
 		gs_effect_destroy(filter->effect);
+	}
+	if (filter->effect_2) {
+		gs_effect_destroy(filter->effect_2);
 	}
 	if (filter->composite_effect) {
 		gs_effect_destroy(filter->composite_effect);
