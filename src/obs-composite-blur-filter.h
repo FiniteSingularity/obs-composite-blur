@@ -42,6 +42,9 @@
 #define PIXELATE_TYPE_TRIAKIS_LABEL "CompositeBlurFilter.Pixelate.Triakis"
 #define PIXELATE_TYPE_CIRCLE 3
 #define PIXELATE_TYPE_CIRCLE_LABEL "CompositeBlurFilter.Pixelate.Circle"
+#define PIXELATE_TYPE_TRIANGLE 4
+#define PIXELATE_TYPE_TRIANGLE_LABEL "CompositeBlurFilter.Pixelate.Triangle"
+
 
 typedef DARRAY(float) fDarray;
 

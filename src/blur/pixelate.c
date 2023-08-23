@@ -32,6 +32,9 @@ void load_effect_pixelate(composite_blur_filter_data_t *filter)
 	case PIXELATE_TYPE_CIRCLE:
 		load_pixelate_circle_effect(filter);
 		break;
+	case PIXELATE_TYPE_TRIANGLE:
+		load_pixelate_triangle_effect(filter);
+		break;
 	}
 }
 
@@ -77,9 +80,6 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 
 static void load_pixelate_square_effect(composite_blur_filter_data_t *filter)
 {
-	if (filter->effect) {
-		gs_effect_destroy(filter->effect);
-	}
 	const char *effect_file_path = "/shaders/pixelate_square.effect";
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
@@ -101,9 +101,6 @@ static void load_pixelate_square_effect(composite_blur_filter_data_t *filter)
 
 static void load_pixelate_hexagonal_effect(composite_blur_filter_data_t *filter)
 {
-	if (filter->effect) {
-		gs_effect_destroy(filter->effect);
-	}
 	const char *effect_file_path = "/shaders/pixelate_hexagonal.effect";
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
@@ -125,10 +122,28 @@ static void load_pixelate_hexagonal_effect(composite_blur_filter_data_t *filter)
 
 static void load_pixelate_circle_effect(composite_blur_filter_data_t *filter)
 {
-	if (filter->effect) {
-		gs_effect_destroy(filter->effect);
-	}
 	const char *effect_file_path = "/shaders/pixelate_circle.effect";
+	filter->effect = load_shader_effect(filter->effect, effect_file_path);
+	if (filter->effect) {
+		size_t effect_count = gs_effect_get_num_params(filter->effect);
+		for (size_t effect_index = 0; effect_index < effect_count;
+		     effect_index++) {
+			gs_eparam_t *param = gs_effect_get_param_by_idx(
+				filter->effect, effect_index);
+			struct gs_effect_param_info info;
+			gs_effect_get_param_info(param, &info);
+			if (strcmp(info.name, "uv_size") == 0) {
+				filter->param_uv_size = param;
+			} else if (strcmp(info.name, "dir") == 0) {
+				filter->param_dir = param;
+			}
+		}
+	}
+}
+
+static void load_pixelate_triangle_effect(composite_blur_filter_data_t *filter)
+{
+	const char *effect_file_path = "/shaders/pixelate_triangle.effect";
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
 		size_t effect_count = gs_effect_get_num_params(filter->effect);

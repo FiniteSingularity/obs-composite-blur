@@ -27,15 +27,17 @@ struct VertData {
 // Converts cartesian coordinates to hexagonal 
 // index coordinates.
 float2 cartToHex(float2 coord){
-	float2x2 Xm = { 1./(2.*R), -1./S,
-	                1./R,       0. };
-	float2x2 Ym = { 1./(2.*R), 1./S,
-	               -1./(2.*R), 1./S };
-	float2 Mi = floor(mul(Xm, coord));
-	float2 Mj = floor(mul(Ym, coord));
+	// float2x2 Xm = { 1./(2.*R), -1./S,
+	//                 1./R,       0. };
+	// float2x2 Ym = { 1./(2.*R), 1./S,
+	//                -1./(2.*R), 1./S };
+	// float2 Mi = floor(mul(Xm, coord));
+	// float2 Mj = floor(mul(Ym, coord));
+	float2 Mi = floor(float2(1.0f/(2.0f*R) * coord.x - 1.0/S * coord.y, 1.0f/R * coord.x));
+	float2 Mj = floor(float2(1.0f/(2.0f*R) * coord.x + 1.0/S * coord.y, -1.0f/(2.0f*R)*coord.x + 1.0f/S * coord.y));
 	return float2(
-		floor((Mi.x + Mi.y + 2.)/3.),
-		floor((Mj.x + Mj.y + 2.)/3.)
+		floor((Mi.x + Mi.y + 2.0f)/3.0f),
+		floor((Mj.x + Mj.y + 2.0f)/3.0f)
 	);
 }
 
@@ -43,7 +45,7 @@ float2 cartToHex(float2 coord){
 // cartesian coordinates.
 float2 hexToCart(float2 hex_coord) {
 	return float2(
-		hex_coord.x*(2.*R) + hex_coord.y*R,
+		hex_coord.x*(2.0f*R) + hex_coord.y*R,
 		hex_coord.y*(S+T)
 	);
 }

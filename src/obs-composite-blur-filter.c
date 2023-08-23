@@ -290,6 +290,9 @@ static obs_properties_t *composite_blur_properties(void *data)
 	obs_property_list_add_int(pixelate_types,
 				  obs_module_text(PIXELATE_TYPE_CIRCLE_LABEL),
 				  PIXELATE_TYPE_CIRCLE);
+	obs_property_list_add_int(pixelate_types,
+				  obs_module_text(PIXELATE_TYPE_TRIANGLE_LABEL),
+				  PIXELATE_TYPE_TRIANGLE);
 
 	obs_properties_add_float_slider(
 		props, "radius", obs_module_text("CompositeBlurFilter.Radius"),

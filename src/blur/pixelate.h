@@ -16,3 +16,4 @@ static void load_pixelate_square_effect(composite_blur_filter_data_t *filter);
 static void
 load_pixelate_hexagonal_effect(composite_blur_filter_data_t *filter);
 static void load_pixelate_circle_effect(composite_blur_filter_data_t *filter);
+static void load_pixelate_triangle_effect(composite_blur_filter_data_t *filter);
