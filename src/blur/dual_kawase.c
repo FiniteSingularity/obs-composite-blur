@@ -68,7 +68,7 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 		}
 		texture = gs_texrender_get_texture(data->render);
 	}
-	blog(LOG_INFO, "=== UPSCALE ===");
+
 	for(int i=data->kawase_passes; i>=1; i--) {
 		// Swap renderers
 		gs_texrender_t *tmp = data->render;
@@ -91,8 +91,6 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 		texel_step_size.x = 1.0f / (float)start_w;
 		texel_step_size.y = 1.0f / (float)start_h;
 		gs_effect_set_vec2(texel_step, &texel_step_size);
-
-		blog(LOG_INFO, "%i x %i --> %i x %i", start_w, start_h, w, h);
 
 		if (gs_texrender_begin(data->render, w, h)) {
 			gs_ortho(0.0f, w, 0.0f, h, -100.0f, 100.0f);
