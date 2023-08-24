@@ -26,7 +26,7 @@ float4 mainImage(VertData v_in) : TARGET
     // Downsample filter as defined here:
     // https://blog.en.uwa4d.com/2022/09/06/screen-post-processing-effects-chapter-5-dual-blur-and-its-implementation/
     float4 col       = image.Sample(textureSampler, v_in.uv);
-    float4 col_dn_rt = image.Sample(textureSampler, v_in.uv + 0.5f*(texel_step);
+    float4 col_dn_rt = image.Sample(textureSampler, v_in.uv + 0.5f*(texel_step));
     float4 col_dn_lt = image.Sample(textureSampler, v_in.uv + 0.5f*float2(-texel_step.x, texel_step.y));
     float4 col_up_rt = image.Sample(textureSampler, v_in.uv + 0.5f*float2(texel_step.x, -texel_step.y));
     float4 col_up_lt = image.Sample(textureSampler, v_in.uv - 0.5f*texel_step);

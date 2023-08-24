@@ -3,6 +3,7 @@
 #include "blur/gaussian.h"
 #include "blur/box.h"
 #include "blur/pixelate.h"
+#include "blur/dual_kawase.h"
 
 struct obs_source_info obs_composite_blur = {
 	.id = "obs_composite_blur",
@@ -137,6 +138,7 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 
 	filter->radius = (float)obs_data_get_double(settings, "radius");
 	filter->passes = (int)obs_data_get_int(settings, "passes");
+	filter->kawase_passes = (int)obs_data_get_int(settings, "kawase_passes");
 
 	filter->center_x = (float)obs_data_get_double(settings, "center_x");
 	filter->center_y = (float)obs_data_get_double(settings, "center_y");
@@ -203,7 +205,6 @@ static void draw_output_to_source(composite_blur_filter_data_t *filter)
 	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 	gs_eparam_t *param = gs_effect_get_param_by_name(pass_through, "image");
 	gs_effect_set_texture(param, texture);
-
 	while (gs_effect_loop(pass_through, "Draw")) {
 		gs_draw_sprite(texture, 0, filter->width, filter->height);
 	}
@@ -252,9 +253,9 @@ static obs_properties_t *composite_blur_properties(void *data)
 				  ALGO_GAUSSIAN);
 	obs_property_list_add_int(blur_algorithms,
 				  obs_module_text(ALGO_BOX_LABEL), ALGO_BOX);
-	// obs_property_list_add_int(blur_algorithms,
-	// 			  obs_module_text(ALGO_KAWASE_LABEL),
-	// 			  ALGO_KAWASE);
+	obs_property_list_add_int(blur_algorithms,
+				  obs_module_text(ALGO_DUAL_KAWASE_LABEL),
+				  ALGO_DUAL_KAWASE);
 	obs_property_list_add_int(blur_algorithms,
 				  obs_module_text(ALGO_PIXELATE_LABEL),
 				  ALGO_PIXELATE);
@@ -305,6 +306,10 @@ static obs_properties_t *composite_blur_properties(void *data)
 	obs_properties_add_int_slider(
 		props, "passes", obs_module_text("CompositeBlurFilter.Passes"),
 		1, 5, 1);
+
+	obs_properties_add_int_slider(
+		props, "kawase_passes", obs_module_text("CompositeBlurFilter.DualKawase.Passes"),
+		1, 16, 1);
 
 	obs_properties_add_float_slider(
 		props, "angle", obs_module_text("CompositeBlurFilter.Angle"),
@@ -366,24 +371,32 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 	int blur_algorithm = (int)obs_data_get_int(settings, "blur_algorithm");
 	switch (blur_algorithm) {
 	case ALGO_GAUSSIAN:
+		setting_visibility("radius", true, props);
 		setting_visibility("passes", false, props);
+		setting_visibility("kawase_passes", false, props);
 		setting_visibility("blur_type", true, props);
 		setting_visibility("pixelate_type", false, props);
 		set_gaussian_blur_types(props);
 		break;
 	case ALGO_BOX:
+		setting_visibility("radius", true, props);
+		setting_visibility("kawase_passes", false, props);
 		setting_visibility("passes", true, props);
 		setting_visibility("blur_type", true, props);
 		setting_visibility("pixelate_type", false, props);
 		set_box_blur_types(props);
 		break;
-	case ALGO_KAWASE:
+	case ALGO_DUAL_KAWASE:
+		setting_visibility("radius", false, props);
 		setting_visibility("passes", false, props);
+		setting_visibility("kawase_passes", true, props);
 		setting_visibility("blur_type", true, props);
 		setting_visibility("pixelate_type", false, props);
 		break;
 	case ALGO_PIXELATE:
+		setting_visibility("radius", true, props);
 		setting_visibility("passes", false, props);
+		setting_visibility("kawase_passes", false, props);
 		setting_visibility("blur_type", false, props);
 		setting_visibility("pixelate_type", true, props);
 		break;
@@ -485,6 +498,8 @@ static void composite_blur_reload_effect(composite_blur_filter_data_t *filter)
 		box_setup_callbacks(filter);
 	} else if (filter->blur_algorithm == ALGO_PIXELATE) {
 		pixelate_setup_callbacks(filter);
+	} else if (filter->blur_algorithm == ALGO_DUAL_KAWASE) {
+		dual_kawase_setup_callbacks(filter);
 	}
 
 	if (filter->load_effect) {

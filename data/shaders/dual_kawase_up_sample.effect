@@ -25,14 +25,14 @@ float4 mainImage(VertData v_in) : TARGET
 {
     // Upsample filter as defined here:
     // https://blog.en.uwa4d.com/2022/09/06/screen-post-processing-effects-chapter-5-dual-blur-and-its-implementation/
-    float4 col_dn    = image.Sample(textureSampler, v_in.uv + float2(0.0f, 0.5f * texel_step.y));
-    float4 col_up    = image.Sample(textureSampler, v_in.uv + float2(0.0f, -0.5f * texel_step.y));
-    float4 col_rt    = image.Sample(textureSampler, v_in.uv + float2(0.5f * texel_step.x, 0.0));
-    float4 col_lt    = image.Sample(textureSampler, v_in.uv + float2(-0.5f * texel_step.x, 0.0));
-    float4 col_dn_rt = image.Sample(textureSampler, v_in.uv + texel_step) * 2.0;
-    float4 col_dn_lt = image.Sample(textureSampler, v_in.uv + float2(-texel_step.x, texel_step.y)) * 2.0;
-    float4 col_up_rt = image.Sample(textureSampler, v_in.uv + float2(texel_step.x, -texel_step.y)) * 2.0;
-    float4 col_up_lt = image.Sample(textureSampler, v_in.uv - texel_step) * 2.0;
+    float4 col_dn    = image.Sample(textureSampler, v_in.uv + float2(0.0f, texel_step.y));
+    float4 col_up    = image.Sample(textureSampler, v_in.uv + float2(0.0f, -texel_step.y));
+    float4 col_rt    = image.Sample(textureSampler, v_in.uv + float2(texel_step.x, 0.0f));
+    float4 col_lt    = image.Sample(textureSampler, v_in.uv + float2(-texel_step.x, 0.0f));
+    float4 col_dn_rt = image.Sample(textureSampler, v_in.uv + 0.5f*texel_step) * 2.0f;
+    float4 col_dn_lt = image.Sample(textureSampler, v_in.uv + 0.5f*float2(-texel_step.x, texel_step.y)) * 2.0f;
+    float4 col_up_rt = image.Sample(textureSampler, v_in.uv + 0.5f*float2(texel_step.x, -texel_step.y)) * 2.0f;
+    float4 col_up_lt = image.Sample(textureSampler, v_in.uv - 0.5f*texel_step) * 2.0f;
 
     return (col_dn + col_up + col_rt + col_lt + col_dn_rt + col_dn_lt + col_up_rt + col_up_lt)/12.0f;
 }

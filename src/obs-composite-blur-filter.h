@@ -16,8 +16,8 @@
 #define ALGO_GAUSSIAN_LABEL "CompositeBlurFilter.Algorithm.Gaussian"
 #define ALGO_BOX 2
 #define ALGO_BOX_LABEL "CompositeBlurFilter.Algorithm.Box"
-#define ALGO_KAWASE 3
-#define ALGO_KAWASE_LABEL "CompositeBlurFilter.Algorithm.Kawase"
+#define ALGO_DUAL_KAWASE 3
+#define ALGO_DUAL_KAWASE_LABEL "CompositeBlurFilter.Algorithm.DualKawase"
 #define ALGO_PIXELATE 4
 #define ALGO_PIXELATE_LABEL "CompositeBlurFilter.Algorithm.Pixelate"
 
