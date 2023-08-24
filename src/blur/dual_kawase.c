@@ -38,8 +38,10 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 
 	texture = blend_composite(texture, data);
 	set_blending_parameters();
-	set_render_parameters();
-	for(int i=1; i<=data->kawase_passes; i++) {
+
+	int last_pass = 0;
+	// Down Sampling
+	for (int i = 1; i <= data->kawase_passes; i *= 2) {
 		// Swap renderers
 		gs_texrender_t *tmp = data->render;
 		data->render = data->render2;
@@ -47,9 +49,10 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 
 		data->render = create_or_reset_texrender(data->render);
 
-		uint32_t w = data->width >> i;
-		uint32_t h = data->height >> i;
-		gs_eparam_t *image = gs_effect_get_param_by_name(effect_down, "image");
+		uint32_t w = data->width / i;
+		uint32_t h = data->height / i;
+		gs_eparam_t *image =
+			gs_effect_get_param_by_name(effect_down, "image");
 		gs_effect_set_texture(image, texture);
 
 		gs_eparam_t *texel_step =
@@ -61,15 +64,87 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 		gs_effect_set_vec2(texel_step, &texel_step_size);
 
 		if (gs_texrender_begin(data->render, w, h)) {
-			gs_ortho(0.0f, w, 0.0f, h, -100.0f, 100.0f);
+			gs_ortho(0.0f, (float)w, 0.0f, (float)h, -100.0f,
+				 100.0f);
 			while (gs_effect_loop(effect_down, "Draw"))
 				gs_draw_sprite(texture, 0, w, h);
 			gs_texrender_end(data->render);
 		}
 		texture = gs_texrender_get_texture(data->render);
+		last_pass = i;
 	}
+	int residual = data->kawase_passes - last_pass;
+	if (residual > 0) {
+		int next_pass = last_pass * 2;
+		float residual_ratio =
+			(float)residual / (float)(next_pass - last_pass);
+		{
+			// RESIDUAL DOWNSAMPLING CODE- REPLACE THIS WITH SOMETHING DRY!!!!
+			gs_texrender_t *tmp = data->render;
+			data->render = data->render2;
+			data->render2 = tmp;
 
-	for(int i=data->kawase_passes; i>=1; i--) {
+			data->render = create_or_reset_texrender(data->render);
+
+			uint32_t w = data->width / data->kawase_passes;
+			uint32_t h = data->height / data->kawase_passes;
+			gs_eparam_t *image = gs_effect_get_param_by_name(
+				effect_down, "image");
+			gs_effect_set_texture(image, texture);
+
+			gs_eparam_t *texel_step = gs_effect_get_param_by_name(
+				effect_down, "texel_step");
+			struct vec2 texel_step_size;
+
+			texel_step_size.x = 1.0f / (float)w;
+			texel_step_size.y = 1.0f / (float)h;
+			gs_effect_set_vec2(texel_step, &texel_step_size);
+
+			if (gs_texrender_begin(data->render, w, h)) {
+				gs_ortho(0.0f, (float)w, 0.0f, (float)h,
+					 -100.0f, 100.0f);
+				while (gs_effect_loop(effect_down, "Draw"))
+					gs_draw_sprite(texture, 0, w, h);
+				gs_texrender_end(data->render);
+			}
+			texture = gs_texrender_get_texture(data->render);
+		}
+		{
+			// RESIDUAL UPSAMPLING CODE- REPLACE THIS WITH SOMETHING DRY!!!!
+			gs_texrender_t *tmp = data->render;
+			data->render = data->render2;
+			data->render2 = tmp;
+
+			data->render = create_or_reset_texrender(data->render);
+
+			uint32_t start_w = gs_texture_get_width(texture);
+			uint32_t start_h = gs_texture_get_height(texture);
+
+			uint32_t w = data->width / last_pass;
+			uint32_t h = data->height / last_pass;
+			gs_eparam_t *image =
+				gs_effect_get_param_by_name(effect_up, "image");
+			gs_effect_set_texture(image, texture);
+
+			gs_eparam_t *texel_step = gs_effect_get_param_by_name(
+				effect_up, "texel_step");
+			struct vec2 texel_step_size;
+			texel_step_size.x = 1.0f / (float)start_w;
+			texel_step_size.y = 1.0f / (float)start_h;
+			gs_effect_set_vec2(texel_step, &texel_step_size);
+
+			if (gs_texrender_begin(data->render, w, h)) {
+				gs_ortho(0.0f, (float)w, 0.0f, (float)h,
+					 -100.0f, 100.0f);
+				while (gs_effect_loop(effect_up, "Draw"))
+					gs_draw_sprite(texture, 0, w, h);
+				gs_texrender_end(data->render);
+			}
+			texture = gs_texrender_get_texture(data->render);
+		}
+	}
+	// Upsample
+	for (int i = last_pass / 2; i >= 1; i /= 2) {
 		// Swap renderers
 		gs_texrender_t *tmp = data->render;
 		data->render = data->render2;
@@ -80,9 +155,10 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 		uint32_t start_w = gs_texture_get_width(texture);
 		uint32_t start_h = gs_texture_get_height(texture);
 
-		uint32_t w = data->width >> (i-1);
-		uint32_t h = data->height >> (i-1);
-		gs_eparam_t *image = gs_effect_get_param_by_name(effect_up, "image");
+		uint32_t w = data->width / i;
+		uint32_t h = data->height / i;
+		gs_eparam_t *image =
+			gs_effect_get_param_by_name(effect_up, "image");
 		gs_effect_set_texture(image, texture);
 
 		gs_eparam_t *texel_step =
@@ -93,7 +169,8 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 		gs_effect_set_vec2(texel_step, &texel_step_size);
 
 		if (gs_texrender_begin(data->render, w, h)) {
-			gs_ortho(0.0f, w, 0.0f, h, -100.0f, 100.0f);
+			gs_ortho(0.0f, (float)w, 0.0f, (float)h, -100.0f,
+				 100.0f);
 			while (gs_effect_loop(effect_up, "Draw"))
 				gs_draw_sprite(texture, 0, w, h);
 			gs_texrender_end(data->render);

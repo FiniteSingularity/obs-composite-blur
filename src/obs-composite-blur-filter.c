@@ -138,7 +138,8 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 
 	filter->radius = (float)obs_data_get_double(settings, "radius");
 	filter->passes = (int)obs_data_get_int(settings, "passes");
-	filter->kawase_passes = (int)obs_data_get_int(settings, "kawase_passes");
+	filter->kawase_passes =
+		(int)obs_data_get_int(settings, "kawase_passes");
 
 	filter->center_x = (float)obs_data_get_double(settings, "center_x");
 	filter->center_y = (float)obs_data_get_double(settings, "center_y");
@@ -308,8 +309,9 @@ static obs_properties_t *composite_blur_properties(void *data)
 		1, 5, 1);
 
 	obs_properties_add_int_slider(
-		props, "kawase_passes", obs_module_text("CompositeBlurFilter.DualKawase.Passes"),
-		1, 16, 1);
+		props, "kawase_passes",
+		obs_module_text("CompositeBlurFilter.DualKawase.Passes"), 1,
+		1024, 1);
 
 	obs_properties_add_float_slider(
 		props, "angle", obs_module_text("CompositeBlurFilter.Angle"),
