@@ -16,8 +16,8 @@
 #define ALGO_GAUSSIAN_LABEL "CompositeBlurFilter.Algorithm.Gaussian"
 #define ALGO_BOX 2
 #define ALGO_BOX_LABEL "CompositeBlurFilter.Algorithm.Box"
-#define ALGO_KAWASE 3
-#define ALGO_KAWASE_LABEL "CompositeBlurFilter.Algorithm.Kawase"
+#define ALGO_DUAL_KAWASE 3
+#define ALGO_DUAL_KAWASE_LABEL "CompositeBlurFilter.Algorithm.DualKawase"
 #define ALGO_PIXELATE 4
 #define ALGO_PIXELATE_LABEL "CompositeBlurFilter.Algorithm.Pixelate"
 
@@ -45,7 +45,6 @@
 #define PIXELATE_TYPE_TRIANGLE 4
 #define PIXELATE_TYPE_TRIANGLE_LABEL "CompositeBlurFilter.Pixelate.Triangle"
 
-
 typedef DARRAY(float) fDarray;
 
 struct composite_blur_filter_data;
@@ -56,7 +55,9 @@ struct composite_blur_filter_data {
 
 	// Effects
 	gs_effect_t *effect;
+	gs_effect_t *effect_2;
 	gs_effect_t *composite_effect;
+	gs_effect_t *mix_effect;
 
 	// Render pipeline
 	bool input_rendered;
@@ -92,6 +93,7 @@ struct composite_blur_filter_data {
 	int blur_type;
 	int blur_type_last;
 	int passes;
+	int kawase_passes;
 	int pixelate_type;
 	int pixelate_type_last;
 	obs_weak_source_t *background;
@@ -121,6 +123,7 @@ static void composite_blur_video_tick(void *data, float seconds);
 static obs_properties_t *composite_blur_properties(void *data);
 static void composite_blur_reload_effect(composite_blur_filter_data_t *filter);
 static void load_composite_effect(composite_blur_filter_data_t *filter);
+static void load_mix_effect(composite_blur_filter_data_t *filter);
 extern gs_texture_t *blend_composite(gs_texture_t *texture,
 				     composite_blur_filter_data_t *data);
 
@@ -133,7 +136,10 @@ static bool setting_blur_types_modified(void *data, obs_properties_t *props,
 					obs_data_t *settings);
 static void setting_visibility(const char *prop_name, bool visible,
 			       obs_properties_t *props);
-static bool settings_blur_area(obs_properties_t *props);
+static void set_blur_radius_settings(const char *name, float min_val,
+				     float max_val, float step_size,
+				     obs_properties_t *props);
+static bool settings_blur_area(obs_properties_t *props, obs_data_t *settings);
 static bool settings_blur_directional(obs_properties_t *props);
 static bool settings_blur_zoom(obs_properties_t *props);
 static bool settings_blur_tilt_shift(obs_properties_t *props);

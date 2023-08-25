@@ -3,6 +3,7 @@
 #include "blur/gaussian.h"
 #include "blur/box.h"
 #include "blur/pixelate.h"
+#include "blur/dual_kawase.h"
 
 struct obs_source_info obs_composite_blur = {
 	.id = "obs_composite_blur",
@@ -39,6 +40,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->blur_algorithm_last = -1;
 	filter->blur_type = TYPE_NONE;
 	filter->blur_type_last = -1;
+	filter->kawase_passes = 1;
 	filter->rendering = false;
 	filter->reload = true;
 	filter->param_uv_size = NULL;
@@ -67,8 +69,14 @@ static void composite_blur_destroy(void *data)
 	if (filter->effect) {
 		gs_effect_destroy(filter->effect);
 	}
+	if (filter->effect_2) {
+		gs_effect_destroy(filter->effect_2);
+	}
 	if (filter->composite_effect) {
 		gs_effect_destroy(filter->composite_effect);
+	}
+	if (filter->mix_effect) {
+		gs_effect_destroy(filter->mix_effect);
 	}
 	if (filter->render) {
 		gs_texrender_destroy(filter->render);
@@ -133,6 +141,8 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 
 	filter->radius = (float)obs_data_get_double(settings, "radius");
 	filter->passes = (int)obs_data_get_int(settings, "passes");
+	filter->kawase_passes =
+		(int)obs_data_get_int(settings, "kawase_passes");
 
 	filter->center_x = (float)obs_data_get_double(settings, "center_x");
 	filter->center_y = (float)obs_data_get_double(settings, "center_y");
@@ -199,7 +209,6 @@ static void draw_output_to_source(composite_blur_filter_data_t *filter)
 	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 	gs_eparam_t *param = gs_effect_get_param_by_name(pass_through, "image");
 	gs_effect_set_texture(param, texture);
-
 	while (gs_effect_loop(pass_through, "Draw")) {
 		gs_draw_sprite(texture, 0, filter->width, filter->height);
 	}
@@ -248,9 +257,9 @@ static obs_properties_t *composite_blur_properties(void *data)
 				  ALGO_GAUSSIAN);
 	obs_property_list_add_int(blur_algorithms,
 				  obs_module_text(ALGO_BOX_LABEL), ALGO_BOX);
-	// obs_property_list_add_int(blur_algorithms,
-	// 			  obs_module_text(ALGO_KAWASE_LABEL),
-	// 			  ALGO_KAWASE);
+	obs_property_list_add_int(blur_algorithms,
+				  obs_module_text(ALGO_DUAL_KAWASE_LABEL),
+				  ALGO_DUAL_KAWASE);
 	obs_property_list_add_int(blur_algorithms,
 				  obs_module_text(ALGO_PIXELATE_LABEL),
 				  ALGO_PIXELATE);
@@ -301,6 +310,11 @@ static obs_properties_t *composite_blur_properties(void *data)
 	obs_properties_add_int_slider(
 		props, "passes", obs_module_text("CompositeBlurFilter.Passes"),
 		1, 5, 1);
+
+	obs_properties_add_int_slider(
+		props, "kawase_passes",
+		obs_module_text("CompositeBlurFilter.DualKawase.Passes"), 1,
+		1024, 1);
 
 	obs_properties_add_float_slider(
 		props, "angle", obs_module_text("CompositeBlurFilter.Angle"),
@@ -362,26 +376,51 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 	int blur_algorithm = (int)obs_data_get_int(settings, "blur_algorithm");
 	switch (blur_algorithm) {
 	case ALGO_GAUSSIAN:
+		setting_visibility("radius", true, props);
 		setting_visibility("passes", false, props);
+		setting_visibility("kawase_passes", false, props);
 		setting_visibility("blur_type", true, props);
 		setting_visibility("pixelate_type", false, props);
+		set_blur_radius_settings(
+			obs_module_text("CompositeBlurFilter.Radius"), 0.0f,
+			80.0f, 0.1f, props);
 		set_gaussian_blur_types(props);
 		break;
 	case ALGO_BOX:
+		setting_visibility("radius", true, props);
+		setting_visibility("kawase_passes", false, props);
 		setting_visibility("passes", true, props);
 		setting_visibility("blur_type", true, props);
 		setting_visibility("pixelate_type", false, props);
+		set_blur_radius_settings(
+			obs_module_text("CompositeBlurFilter.Radius"), 0.0f,
+			100.0f, 0.1f, props);
 		set_box_blur_types(props);
 		break;
-	case ALGO_KAWASE:
+	case ALGO_DUAL_KAWASE:
+		setting_visibility("radius", false, props);
 		setting_visibility("passes", false, props);
-		setting_visibility("blur_type", true, props);
+		setting_visibility("kawase_passes", true, props);
+		setting_visibility("blur_type", false, props);
 		setting_visibility("pixelate_type", false, props);
+		set_dual_kawase_blur_types(props);
+		obs_data_set_int(settings, "blur_type", TYPE_AREA);
+		settings_blur_area(props, settings);
 		break;
 	case ALGO_PIXELATE:
+		setting_visibility("radius", true, props);
 		setting_visibility("passes", false, props);
+		setting_visibility("kawase_passes", false, props);
 		setting_visibility("blur_type", false, props);
 		setting_visibility("pixelate_type", true, props);
+		set_blur_radius_settings(
+			obs_module_text(
+				"CompositeBlurFilter.Pixelate.PixelSize"),
+			0.0f, 256.0f, 0.1f, props);
+		set_pixelate_blur_types(props);
+		obs_data_set_int(settings, "blur_type", TYPE_AREA);
+		settings_blur_area(props, settings);
+
 		break;
 	}
 	return true;
@@ -394,7 +433,7 @@ static bool setting_blur_types_modified(void *data, obs_properties_t *props,
 	UNUSED_PARAMETER(data);
 	int blur_type = (int)obs_data_get_int(settings, "blur_type");
 	if (blur_type == TYPE_AREA) {
-		return settings_blur_area(props);
+		return settings_blur_area(props, settings);
 	} else if (blur_type == TYPE_DIRECTIONAL) {
 		return settings_blur_directional(props);
 	} else if (blur_type == TYPE_ZOOM) {
@@ -415,9 +454,20 @@ static void setting_visibility(const char *prop_name, bool visible,
 	obs_property_set_visible(p, visible);
 }
 
-static bool settings_blur_area(obs_properties_t *props)
+static void set_blur_radius_settings(const char *name, float min_val,
+				     float max_val, float step_size,
+				     obs_properties_t *props)
 {
-	setting_visibility("radius", true, props);
+	obs_property_t *p = obs_properties_get(props, "radius");
+	obs_property_set_description(p, name);
+	obs_property_float_set_limits(p, (double)min_val, (double)max_val,
+				      (double)step_size);
+}
+
+static bool settings_blur_area(obs_properties_t *props, obs_data_t *settings)
+{
+	int algorithm = (int)obs_data_get_int(settings, "blur_algorithm");
+	setting_visibility("radius", algorithm != ALGO_DUAL_KAWASE, props);
 	setting_visibility("angle", false, props);
 	setting_visibility("center_coordinate", false, props);
 	setting_visibility("background", true, props);
@@ -481,11 +531,14 @@ static void composite_blur_reload_effect(composite_blur_filter_data_t *filter)
 		box_setup_callbacks(filter);
 	} else if (filter->blur_algorithm == ALGO_PIXELATE) {
 		pixelate_setup_callbacks(filter);
+	} else if (filter->blur_algorithm == ALGO_DUAL_KAWASE) {
+		dual_kawase_setup_callbacks(filter);
 	}
 
 	if (filter->load_effect) {
 		filter->load_effect(filter);
 		load_composite_effect(filter);
+		load_mix_effect(filter);
 	}
 
 	obs_data_release(settings);
@@ -525,6 +578,49 @@ static void load_composite_effect(composite_blur_filter_data_t *filter)
 		     effect_index++) {
 			gs_eparam_t *param = gs_effect_get_param_by_idx(
 				filter->composite_effect, effect_index);
+			struct gs_effect_param_info info;
+			gs_effect_get_param_info(param, &info);
+			if (strcmp(info.name, "background") == 0) {
+				filter->param_background = param;
+			}
+		}
+	}
+}
+
+static void load_mix_effect(composite_blur_filter_data_t *filter)
+{
+	if (filter->mix_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->mix_effect);
+		filter->mix_effect = NULL;
+		obs_leave_graphics();
+	}
+
+	char *shader_text = NULL;
+	struct dstr filename = {0};
+	dstr_cat(&filename, obs_get_module_data_path(obs_current_module()));
+	dstr_cat(&filename, "/shaders/mix.effect");
+	shader_text = load_shader_from_file(filename.array);
+	char *errors = NULL;
+
+	obs_enter_graphics();
+	filter->mix_effect = gs_effect_create(shader_text, NULL, &errors);
+	obs_leave_graphics();
+
+	bfree(shader_text);
+	if (filter->mix_effect == NULL) {
+		blog(LOG_WARNING,
+		     "[obs-composite-blur] Unable to load composite.effect file.  Errors:\n%s",
+		     (errors == NULL || strlen(errors) == 0 ? "(None)"
+							    : errors));
+		bfree(errors);
+	} else {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->mix_effect);
+		for (size_t effect_index = 0; effect_index < effect_count;
+		     effect_index++) {
+			gs_eparam_t *param = gs_effect_get_param_by_idx(
+				filter->mix_effect, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "background") == 0) {
