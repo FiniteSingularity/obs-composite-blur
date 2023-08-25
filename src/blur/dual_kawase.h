@@ -14,3 +14,6 @@ static void
 load_dual_kawase_down_sample_effect(composite_blur_filter_data_t *filter);
 static void
 load_dual_kawase_up_sample_effect(composite_blur_filter_data_t *filter);
+static gs_texture_t *mix_textures(composite_blur_filter_data_t *data,
+				  gs_texture_t *base, gs_texture_t *residual,
+				  float ratio);
