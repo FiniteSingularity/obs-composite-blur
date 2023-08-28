@@ -45,6 +45,19 @@
 #define PIXELATE_TYPE_TRIANGLE 4
 #define PIXELATE_TYPE_TRIANGLE_LABEL "CompositeBlurFilter.Pixelate.Triangle"
 
+#define EFFECT_MASK_TYPE_NONE 0
+#define EFFECT_MASK_TYPE_NONE_LABEL "CompositeBlurFilter.EffectMask.None"
+#define EFFECT_MASK_TYPE_CROP 1
+#define EFFECT_MASK_TYPE_CROP_LABEL "CompositeBlurFilter.EffectMask.Crop"
+#define EFFECT_MASK_TYPE_RECT 2
+#define EFFECT_MASK_TYPE_RECT_LABEL "CompositeBlurFilter.EffectMask.Rectangle"
+#define EFFECT_MASK_TYPE_CIRCLE 3
+#define EFFECT_MASK_TYPE_CIRCLE_LABEL "CompositeBlurFilter.EffectMask.Circle"
+#define EFFECT_MASK_TYPE_SOURCE 4
+#define EFFECT_MASK_TYPE_SOURCE_LABEL "CompositeBlurFilter.EffectMask.Source"
+#define EFFECT_MASK_TYPE_IMAGE 5
+#define EFFECT_MASK_TYPE_IMAGE_LABEL "CompositeBlurFilter.EffectMask.Image"
+
 typedef DARRAY(float) fDarray;
 
 struct composite_blur_filter_data;
@@ -58,6 +71,7 @@ struct composite_blur_filter_data {
 	gs_effect_t *effect_2;
 	gs_effect_t *composite_effect;
 	gs_effect_t *mix_effect;
+	gs_effect_t *effect_mask_effect;
 
 	// Render pipeline
 	bool input_rendered;
@@ -97,6 +111,17 @@ struct composite_blur_filter_data {
 	int kawase_passes;
 	int pixelate_type;
 	int pixelate_type_last;
+
+	// Mask
+	int mask_type;
+	int mask_type_last;
+	float mask_crop_left;
+	float mask_crop_right;
+	float mask_crop_top;
+	float mask_crop_bot;
+	float mask_crop_corner_radius;
+	bool mask_crop_invert;
+
 	obs_weak_source_t *background;
 	uint32_t width;
 	uint32_t height;
@@ -131,7 +156,9 @@ extern gs_texture_t *blend_composite(gs_texture_t *texture,
 static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 					    obs_property_t *p,
 					    obs_data_t *settings);
-
+static bool setting_effect_mask_modified(obs_properties_t *props,
+					 obs_property_t *p,
+					 obs_data_t *settings);
 static bool setting_blur_types_modified(void *data, obs_properties_t *props,
 					obs_property_t *p,
 					obs_data_t *settings);
@@ -144,3 +171,8 @@ static bool settings_blur_area(obs_properties_t *props, obs_data_t *settings);
 static bool settings_blur_directional(obs_properties_t *props);
 static bool settings_blur_zoom(obs_properties_t *props);
 static bool settings_blur_tilt_shift(obs_properties_t *props);
+
+static void apply_effect_mask(composite_blur_filter_data_t *filter);
+static void apply_effect_mask_crop(composite_blur_filter_data_t *filter);
+static void load_crop_mask_effect(composite_blur_filter_data_t *filter);
+static void effect_mask_load_effect(composite_blur_filter_data_t *filter);

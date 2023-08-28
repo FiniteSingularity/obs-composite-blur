@@ -53,6 +53,14 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->kernel_texture = NULL;
 	filter->pixelate_type = 1;
 	filter->pixelate_type_last = -1;
+	filter->mask_crop_left = 0.0f;
+	filter->mask_crop_right = 0.0f;
+	filter->mask_crop_top = 0.0f;
+	filter->mask_crop_bot = 0.0f;
+	filter->mask_type = 0;
+	filter->mask_type_last = -1;
+	filter->mask_crop_corner_radius = 0.0f;
+	filter->mask_crop_invert = false;
 
 	da_init(filter->kernel);
 
@@ -77,6 +85,9 @@ static void composite_blur_destroy(void *data)
 	}
 	if (filter->mix_effect) {
 		gs_effect_destroy(filter->mix_effect);
+	}
+	if (filter->effect_mask_effect) {
+		gs_effect_destroy(filter->effect_mask_effect);
 	}
 	if (filter->render) {
 		gs_texrender_destroy(filter->render);
@@ -137,6 +148,23 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 	if (filter->pixelate_type != filter->pixelate_type_last) {
 		filter->pixelate_type_last = filter->pixelate_type;
 		filter->reload = true;
+	}
+
+	filter->mask_type = (int)obs_data_get_int(settings, "effect_mask");
+	filter->mask_crop_top =
+		(float)obs_data_get_double(settings, "effect_mask_crop_top");
+	filter->mask_crop_bot =
+		(float)obs_data_get_double(settings, "effect_mask_crop_bottom");
+	filter->mask_crop_left =
+		(float)obs_data_get_double(settings, "effect_mask_crop_left");
+	filter->mask_crop_right =
+		(float)obs_data_get_double(settings, "effect_mask_crop_right");
+	filter->mask_crop_corner_radius = (float)obs_data_get_double(
+		settings, "effect_mask_crop_corner_radius");
+
+	if (filter->mask_type != filter->mask_type_last) {
+		filter->mask_type_last = filter->mask_type;
+		effect_mask_load_effect(filter);
 	}
 
 	filter->radius = (float)obs_data_get_double(settings, "radius");
@@ -238,12 +266,80 @@ static void composite_blur_video_render(void *data, gs_effect_t *effect)
 		// 2. Apply effect to texture, and render texture to video
 		filter->video_render(filter);
 
+		if (filter->mask_type != EFFECT_MASK_TYPE_NONE) {
+			// Swap output and render
+			apply_effect_mask(filter);
+		}
+
 		// 3. Draw result (filter->output_texrender) to source
 		draw_output_to_source(filter);
 		filter->rendered = true;
 	}
 
 	filter->rendering = false;
+}
+
+static void apply_effect_mask(composite_blur_filter_data_t *filter)
+{
+	switch (filter->mask_type) {
+	case EFFECT_MASK_TYPE_CROP:
+		apply_effect_mask_crop(filter);
+		break;
+	}
+}
+
+static void apply_effect_mask_crop(composite_blur_filter_data_t *filter)
+{
+	// Swap output with render
+	gs_texrender_t *tmp = filter->output_texrender;
+	filter->output_texrender = filter->render;
+	filter->render = tmp;
+
+	gs_effect_t *effect = filter->effect_mask_effect;
+	gs_texture_t *texture =
+		gs_texrender_get_texture(filter->input_texrender);
+	gs_texture_t *filtered_texture =
+		gs_texrender_get_texture(filter->render);
+
+	if (!effect || !texture) {
+		return;
+	}
+
+	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
+	gs_effect_set_texture(image, texture);
+
+	gs_eparam_t *filtered_image =
+		gs_effect_get_param_by_name(effect, "filtered_image");
+	gs_effect_set_texture(filtered_image, filtered_texture);
+
+	gs_eparam_t *scale = gs_effect_get_param_by_name(effect, "scale");
+	struct vec2 scale_v;
+	scale_v.x = 1.0f /
+		    (1.0f - filter->mask_crop_right - filter->mask_crop_left);
+	scale_v.y =
+		1.0f / (1.0f - filter->mask_crop_bot - filter->mask_crop_top);
+	gs_effect_set_vec2(scale, &scale_v);
+
+	gs_eparam_t *offset = gs_effect_get_param_by_name(effect, "offset");
+	struct vec2 offset_v;
+	offset_v.x = filter->mask_crop_left;
+	offset_v.y = filter->mask_crop_top;
+	gs_effect_set_vec2(offset, &offset_v);
+
+	set_blending_parameters();
+
+	filter->output_texrender =
+		create_or_reset_texrender(filter->output_texrender);
+
+	if (gs_texrender_begin(filter->output_texrender, filter->width,
+			       filter->height)) {
+		while (gs_effect_loop(effect, "Draw"))
+			gs_draw_sprite(texture, 0, filter->width,
+				       filter->height);
+		gs_texrender_end(filter->output_texrender);
+	}
+	texture = gs_texrender_get_texture(filter->output_texrender);
+	gs_blend_state_pop();
 }
 
 static obs_properties_t *composite_blur_properties(void *data)
@@ -370,7 +466,81 @@ static obs_properties_t *composite_blur_properties(void *data)
 	obs_enum_sources(add_source_to_list, p);
 	obs_enum_scenes(add_source_to_list, p);
 
+	obs_property_t *effect_mask_list = obs_properties_add_list(
+		props, "effect_mask",
+		obs_module_text("CompositeBlurFilter.EffectMask"),
+		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+
+	obs_property_list_add_int(effect_mask_list,
+				  obs_module_text(EFFECT_MASK_TYPE_NONE_LABEL),
+				  EFFECT_MASK_TYPE_NONE);
+	obs_property_list_add_int(effect_mask_list,
+				  obs_module_text(EFFECT_MASK_TYPE_CROP_LABEL),
+				  EFFECT_MASK_TYPE_CROP);
+
+	obs_property_set_modified_callback(effect_mask_list,
+					   setting_effect_mask_modified);
+
+	obs_properties_t *effect_mask_crop = obs_properties_create();
+
+	obs_properties_add_float_slider(
+		effect_mask_crop, "effect_mask_crop_top",
+		obs_module_text("CompositeBlurFilter.EffectMask.Crop.Top"), 0.0,
+		100.01, 0.1);
+
+	obs_properties_add_float_slider(
+		effect_mask_crop, "effect_mask_crop_bottom",
+		obs_module_text("CompositeBlurFilter.EffectMask.Crop.Bottom"),
+		0.0, 100.01, 0.1);
+
+	obs_properties_add_float_slider(
+		effect_mask_crop, "effect_mask_crop_left",
+		obs_module_text("CompositeBlurFilter.EffectMask.Crop.Left"),
+		0.0, 100.01, 0.1);
+
+	obs_properties_add_float_slider(
+		effect_mask_crop, "effect_mask_crop_right",
+		obs_module_text("CompositeBlurFilter.EffectMask.Crop.Right"),
+		0.0, 100.01, 0.1);
+
+	obs_properties_add_float_slider(
+		effect_mask_crop, "effect_mask_crop_corner_radius",
+		obs_module_text("CompositeBlurFilter.EffectMask.CornerRadius"),
+		0.0, 50.01, 0.1);
+
+	obs_properties_add_group(
+		props, "effect_mask_crop",
+		obs_module_text(
+			"CompositeBlurFilter.EffectMask.CropParameters"),
+		OBS_GROUP_NORMAL, effect_mask_crop);
+
 	return props;
+}
+
+static bool setting_effect_mask_modified(obs_properties_t *props,
+					 obs_property_t *p,
+					 obs_data_t *settings)
+{
+	UNUSED_PARAMETER(p);
+	int mask_type = (int)obs_data_get_int(settings, "effect_mask");
+	switch (mask_type) {
+	case EFFECT_MASK_TYPE_NONE:
+		setting_visibility("effect_mask_crop", false, props);
+		break;
+	case EFFECT_MASK_TYPE_CROP:
+		setting_visibility("effect_mask_crop", true, props);
+		break;
+	}
+	return true;
+}
+
+static void effect_mask_load_effect(composite_blur_filter_data_t *filter)
+{
+	switch (filter->mask_type) {
+	case EFFECT_MASK_TYPE_CROP:
+		load_crop_mask_effect(filter);
+		break;
+	}
 }
 
 static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
@@ -594,6 +764,46 @@ static void load_composite_effect(composite_blur_filter_data_t *filter)
 	}
 }
 
+static void load_crop_mask_effect(composite_blur_filter_data_t *filter)
+{
+	if (filter->composite_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->composite_effect);
+		filter->composite_effect = NULL;
+		obs_leave_graphics();
+	}
+
+	char *shader_text = NULL;
+	struct dstr filename = {0};
+	dstr_cat(&filename, obs_get_module_data_path(obs_current_module()));
+	dstr_cat(&filename, "/shaders/effect_mask_crop.effect");
+	shader_text = load_shader_from_file(filename.array);
+	char *errors = NULL;
+
+	obs_enter_graphics();
+	filter->composite_effect = gs_effect_create(shader_text, NULL, &errors);
+	obs_leave_graphics();
+
+	bfree(shader_text);
+	if (filter->composite_effect == NULL) {
+		blog(LOG_WARNING,
+		     "[obs-composite-blur] Unable to load effect_mask_crop.effect file.  Errors:\n%s",
+		     (errors == NULL || strlen(errors) == 0 ? "(None)"
+							    : errors));
+		bfree(errors);
+	} else {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->composite_effect);
+		for (size_t effect_index = 0; effect_index < effect_count;
+		     effect_index++) {
+			gs_eparam_t *param = gs_effect_get_param_by_idx(
+				filter->composite_effect, effect_index);
+			struct gs_effect_param_info info;
+			gs_effect_get_param_info(param, &info);
+		}
+	}
+}
+
 static void load_mix_effect(composite_blur_filter_data_t *filter)
 {
 	if (filter->mix_effect != NULL) {
@@ -617,7 +827,7 @@ static void load_mix_effect(composite_blur_filter_data_t *filter)
 	bfree(shader_text);
 	if (filter->mix_effect == NULL) {
 		blog(LOG_WARNING,
-		     "[obs-composite-blur] Unable to load composite.effect file.  Errors:\n%s",
+		     "[obs-composite-blur] Unable to load mix.effect file.  Errors:\n%s",
 		     (errors == NULL || strlen(errors) == 0 ? "(None)"
 							    : errors));
 		bfree(errors);
