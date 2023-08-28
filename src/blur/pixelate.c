@@ -52,7 +52,7 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
-	const float radius = (float)fmax((float)data->radius, 0.1f);
+	const float radius = (float)fmax((float)data->radius, 1.0f);
 	gs_eparam_t *radius_param =
 		gs_effect_get_param_by_name(effect, "pixel_size");
 	gs_effect_set_float(radius_param, radius);

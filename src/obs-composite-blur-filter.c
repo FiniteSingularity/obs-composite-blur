@@ -305,7 +305,7 @@ static obs_properties_t *composite_blur_properties(void *data)
 
 	obs_properties_add_float_slider(
 		props, "radius", obs_module_text("CompositeBlurFilter.Radius"),
-		0.0, 83.0, 0.1);
+		0.0, 80.1, 0.1);
 
 	obs_properties_add_int_slider(
 		props, "passes", obs_module_text("CompositeBlurFilter.Passes"),
@@ -314,11 +314,11 @@ static obs_properties_t *composite_blur_properties(void *data)
 	obs_properties_add_int_slider(
 		props, "kawase_passes",
 		obs_module_text("CompositeBlurFilter.DualKawase.Passes"), 1,
-		1024, 1);
+		1025, 1);
 
 	obs_properties_add_float_slider(
 		props, "angle", obs_module_text("CompositeBlurFilter.Angle"),
-		-360.0, 360.0, 0.1);
+		-360.0, 360.1, 0.1);
 
 	obs_properties_t *center_coords = obs_properties_create();
 
@@ -345,11 +345,11 @@ static obs_properties_t *composite_blur_properties(void *data)
 	obs_properties_add_float_slider(
 		tilt_shift_bounds, "tilt_shift_angle",
 		obs_module_text("CompositeBlurFilter.TiltShift.Angle"), -180.0,
-		180.0, 0.1);
+		181.0, 0.1);
 	obs_properties_add_float_slider(
 		tilt_shift_bounds, "tilt_shift_width",
 		obs_module_text("CompositeBlurFilter.TiltShift.Width"), 0.0,
-		1.0, 0.01);
+		1.01, 0.01);
 
 	obs_properties_add_group(
 		props, "tilt_shift_bounds",
@@ -383,7 +383,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("pixelate_type", false, props);
 		set_blur_radius_settings(
 			obs_module_text("CompositeBlurFilter.Radius"), 0.0f,
-			80.0f, 0.1f, props);
+			80.01f, 0.1f, props);
 		set_gaussian_blur_types(props);
 		break;
 	case ALGO_BOX:
@@ -394,7 +394,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("pixelate_type", false, props);
 		set_blur_radius_settings(
 			obs_module_text("CompositeBlurFilter.Radius"), 0.0f,
-			100.0f, 0.1f, props);
+			100.01f, 0.1f, props);
 		set_box_blur_types(props);
 		break;
 	case ALGO_DUAL_KAWASE:
@@ -416,7 +416,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		set_blur_radius_settings(
 			obs_module_text(
 				"CompositeBlurFilter.Pixelate.PixelSize"),
-			0.0f, 256.0f, 0.1f, props);
+			1.0f, 1024.01f, 0.1f, props);
 		set_pixelate_blur_types(props);
 		obs_data_set_int(settings, "blur_type", TYPE_AREA);
 		settings_blur_area(props, settings);
