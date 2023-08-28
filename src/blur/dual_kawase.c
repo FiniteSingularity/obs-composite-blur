@@ -132,7 +132,7 @@ gs_texture_t *mix_textures(composite_blur_filter_data_t *data,
 static void dual_kawase_blur(composite_blur_filter_data_t *data)
 {
 	gs_texture_t *texture = gs_texrender_get_texture(data->input_texrender);
-	if (data->kawase_passes == 1) {
+	if (data->kawase_passes <= 1) {
 		gs_texrender_t *tmp = data->input_texrender;
 		data->input_texrender = data->output_texrender;
 		data->output_texrender = tmp;
