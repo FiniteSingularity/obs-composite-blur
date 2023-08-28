@@ -120,6 +120,8 @@ static void gaussian_area_blur(composite_blur_filter_data_t *data)
 	set_blending_parameters();
 
 	if (gs_texrender_begin(data->render2, data->width, data->height)) {
+		gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height,
+			 -100.0f, 100.0f);
 		while (gs_effect_loop(effect, "Draw"))
 			gs_draw_sprite(texture, 0, data->width, data->height);
 		gs_texrender_end(data->render2);
@@ -146,6 +148,8 @@ static void gaussian_area_blur(composite_blur_filter_data_t *data)
 
 	if (gs_texrender_begin(data->output_texrender, data->width,
 			       data->height)) {
+		gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height,
+			 -100.0f, 100.0f);
 		while (gs_effect_loop(effect, "Draw"))
 			gs_draw_sprite(texture, 0, data->width, data->height);
 		gs_texrender_end(data->output_texrender);
@@ -209,6 +213,8 @@ static void gaussian_directional_blur(composite_blur_filter_data_t *data)
 
 	if (gs_texrender_begin(data->output_texrender, data->width,
 			       data->height)) {
+		gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height,
+			 -100.0f, 100.0f);
 		while (gs_effect_loop(effect, "Draw"))
 			gs_draw_sprite(texture, 0, data->width, data->height);
 		gs_texrender_end(data->output_texrender);
@@ -272,6 +278,8 @@ static void gaussian_motion_blur(composite_blur_filter_data_t *data)
 
 	if (gs_texrender_begin(data->output_texrender, data->width,
 			       data->height)) {
+		gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height,
+			 -100.0f, 100.0f);
 		while (gs_effect_loop(effect, "Draw"))
 			gs_draw_sprite(texture, 0, data->width, data->height);
 		gs_texrender_end(data->output_texrender);
@@ -344,6 +352,8 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 
 	if (gs_texrender_begin(data->output_texrender, data->width,
 			       data->height)) {
+		gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height,
+			 -100.0f, 100.0f);
 		while (gs_effect_loop(effect, "Draw"))
 			gs_draw_sprite(texture, 0, data->width, data->height);
 		gs_texrender_end(data->output_texrender);
@@ -485,8 +495,6 @@ static void sample_kernel(float radius, composite_blur_filter_data_t *filter)
 		}
 		da_push_back(d_weights, &weight);
 	}
-
-	d_weights.array[0] = (d_weights.array[0]) * 2.0f;
 
 	fDarray d_offsets;
 	da_init(d_offsets);
