@@ -12,8 +12,11 @@ A high quality blur algorithm that uses a gaussian kernel to sample/blur. Gaussi
 ### Box
 Box blur works similar to Gaussian, but uses an equally weighted sample of surrounding pixels. The upside is a more efficient blurring algorithm, at the expense of some quality. With one pass, box blur can cause some blocky artifacts in some cases. This can be mitigated by increasing the number of passes- a 2 pass box blur has nearly the same quality as Gaussian blur. This plugin allows the user to specify up to 5 passes. Similar to Gaussian, this implementation of box blur allows for fractional pixels for smooth animation. The Box Blur Algorithm supports [Area](#area), [Directional](#directional), [Zoom](#zoom), and [Tilt-Shift](#tilt-shift) blur effects.
 
+### Dual Kawase (Dual Filter)
+Dual Kawase is a blurring algorithm that uses down and upsampling in order to blur the image.  It has a high quality blur with little artifacting and is computationally efficient especially at larger blur values.  The naieve implementation of Dual Kawase however has very large jumps in blur- essentially doubling the blur at each step.  This implementation sacrafices a small amount of efficiency, but allows intermediate blur values by using linear interpolation during the final downsamping step.  This gives a continuous change in blur values.  The most common use for Dual Kawase is when you need a very high blur radius, but with linear interpolation it can also be used as a general blur.  However due to how the algorithm works, only [Area](#area) blur is available.
+
 ### Pixelate
-Pixelate divides the souce into larger pixels, effectively downsampling the image, and giving it a bitmap like appearance.  This plugin allows the user to specify the pixel size and shape.  Supported shapes are Square, Hexagon, Triangle, and Circle. As with the other algorithms, fractional pixel sizes (blur radius) is supported.  The Pixelate Algorithm only supports the [Area](#area) blur effect.
+Pixelate divides the souce into larger pixels, effectively downsampling the image, and giving it a bitmap like appearance.  This plugin allows the user to specify the pixel size and shape.  Supported shapes are Square, Hexagon, Triangle, and Circle. As with the other algorithms, fractional pixel sizes (blur radius) are supported.  The Pixelate Algorithm only supports the [Area](#area) blur effect.
 
 ## Blur Effects
 OBS Composite Blur provides several different blur effects or types, all giving a different feel to the resulting image.
