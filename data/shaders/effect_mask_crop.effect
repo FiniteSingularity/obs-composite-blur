@@ -4,6 +4,8 @@ uniform texture2d filtered_image;
 
 uniform float2 scale;
 uniform float2 offset;
+uniform float2 box_aspect_ratio;
+uniform float corner_radius;
 uniform bool inv = false;
 
 sampler_state textureSampler{
@@ -27,12 +29,52 @@ VertData mainTransform(VertData v_in)
 
 float4 mainImage(VertData v_in) : TARGET
 {
-    float2 transform_coord = v_in.uv * scale - offset;
-    return float4(1.0, 1.0, 0.0, 1.0);
+    float2 transform_coord = (v_in.uv - offset) * scale;
     if(transform_coord.x < 0.0f || transform_coord.y < 0.0f || transform_coord.x > 1.0f || transform_coord.y > 1.0f) {
+        // Outside
+        return inv ? filtered_image.Sample(textureSampler, v_in.uv) : image.Sample(textureSampler, v_in.uv);
+    }
+    // Inside
+    // 1. Scale to 1:1 ratio, shorten long side
+    float2 inner_coord = transform_coord * box_aspect_ratio;
+    if(
+        inner_coord.x > corner_radius && inner_coord.y > corner_radius &&
+        inner_coord.x < (box_aspect_ratio.x - corner_radius) && inner_coord.y < (box_aspect_ratio.y - corner_radius)
+    ) {
         return inv ? image.Sample(textureSampler, v_in.uv) : filtered_image.Sample(textureSampler, v_in.uv);
     }
-    return inv ? filtered_image.Sample(textureSampler, v_in.uv) : image.Sample(textureSampler, v_in.uv);
+    if(inner_coord.x < corner_radius && inner_coord.y < corner_radius) {
+        // top left
+        if (distance(inner_coord, float2(corner_radius, corner_radius)) > corner_radius) {
+            return inv ? filtered_image.Sample(textureSampler, v_in.uv) : image.Sample(textureSampler, v_in.uv);
+        }
+    } else if(inner_coord.x < corner_radius && inner_coord.y > (box_aspect_ratio.y - corner_radius)) {
+        // bot left
+        if (distance(inner_coord, float2(corner_radius, box_aspect_ratio.y - corner_radius)) > corner_radius) {
+            return inv ? filtered_image.Sample(textureSampler, v_in.uv) : image.Sample(textureSampler, v_in.uv);
+        }
+    } else if(inner_coord.x > (box_aspect_ratio.x - corner_radius) && inner_coord.y < corner_radius) {
+        // top right
+        if (distance(inner_coord, float2(box_aspect_ratio.x - corner_radius, corner_radius)) > corner_radius) {
+            return inv ? filtered_image.Sample(textureSampler, v_in.uv) : image.Sample(textureSampler, v_in.uv);
+        }
+    } else if(inner_coord.x > (box_aspect_ratio.x - corner_radius) && inner_coord.y > (box_aspect_ratio.y - corner_radius)) {
+        // bot right
+        if (distance(inner_coord, float2(box_aspect_ratio.x - corner_radius, box_aspect_ratio.y - corner_radius)) > corner_radius) {
+            return inv ? filtered_image.Sample(textureSampler, v_in.uv) : image.Sample(textureSampler, v_in.uv);
+        }
+    }
+
+    return inv ? image.Sample(textureSampler, v_in.uv) : filtered_image.Sample(textureSampler, v_in.uv);
+    
+    //  else if(
+    //     transform_coord.x > corner_radius && transform_coord.x < 1.0f-corner_radius && 
+    //     transform_coord.y > corner_radius && transform_coord.y < 1.0f-corner_radius
+    // ) {
+    //     return inv ? image.Sample(textureSampler, v_in.uv) : filtered_image.Sample(textureSampler, v_in.uv);
+    // }
+    // return float4(1.0, 0.0, 1.0, 1.0);
+    
 }
 
 technique Draw

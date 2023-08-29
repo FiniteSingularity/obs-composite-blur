@@ -161,7 +161,8 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		(float)obs_data_get_double(settings, "effect_mask_crop_right");
 	filter->mask_crop_corner_radius = (float)obs_data_get_double(
 		settings, "effect_mask_crop_corner_radius");
-
+	filter->mask_crop_invert =
+		obs_data_get_bool(settings, "effect_mask_crop_invert");
 	if (filter->mask_type != filter->mask_type_last) {
 		filter->mask_type_last = filter->mask_type;
 		effect_mask_load_effect(filter);
@@ -218,7 +219,6 @@ static void get_input_source(composite_blur_filter_data_t *filter)
 			       filter->height)) {
 
 		set_blending_parameters();
-		//set_render_parameters();
 
 		gs_ortho(0.0f, (float)filter->width, 0.0f,
 			 (float)filter->height, -100.0f, 100.0f);
@@ -285,11 +285,19 @@ static void apply_effect_mask(composite_blur_filter_data_t *filter)
 	case EFFECT_MASK_TYPE_CROP:
 		apply_effect_mask_crop(filter);
 		break;
+	case EFFECT_MASK_TYPE_SOURCE:
+
+		break;
 	}
 }
 
 static void apply_effect_mask_crop(composite_blur_filter_data_t *filter)
 {
+	float right = filter->mask_crop_right / 100.0f;
+	float left = filter->mask_crop_left / 100.0f;
+	float top = filter->mask_crop_top / 100.0f;
+	float bot = filter->mask_crop_bot / 100.0f;
+
 	// Swap output with render
 	gs_texrender_t *tmp = filter->output_texrender;
 	filter->output_texrender = filter->render;
@@ -301,10 +309,9 @@ static void apply_effect_mask_crop(composite_blur_filter_data_t *filter)
 	gs_texture_t *filtered_texture =
 		gs_texrender_get_texture(filter->render);
 
-	if (!effect || !texture) {
+	if (!effect || !texture || !filtered_texture) {
 		return;
 	}
-
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
@@ -314,17 +321,35 @@ static void apply_effect_mask_crop(composite_blur_filter_data_t *filter)
 
 	gs_eparam_t *scale = gs_effect_get_param_by_name(effect, "scale");
 	struct vec2 scale_v;
-	scale_v.x = 1.0f /
-		    (1.0f - filter->mask_crop_right - filter->mask_crop_left);
-	scale_v.y =
-		1.0f / (1.0f - filter->mask_crop_bot - filter->mask_crop_top);
+	scale_v.x = 1.0f / max(1.0f - right - left, 1.e-6f);
+	scale_v.y = 1.0f / max(1.0f - bot - top, 1.e-6f);
 	gs_effect_set_vec2(scale, &scale_v);
+
+	gs_eparam_t *box_aspect_ratio =
+		gs_effect_get_param_by_name(effect, "box_aspect_ratio");
+	struct vec2 box_ar;
+	box_ar.x = (1.0f - right - left) * filter->width /
+		   min(filter->width, filter->height);
+	box_ar.y = (1.0f - bot - top) * filter->height /
+		   min(filter->width, filter->height);
+	gs_effect_set_vec2(box_aspect_ratio, &box_ar);
 
 	gs_eparam_t *offset = gs_effect_get_param_by_name(effect, "offset");
 	struct vec2 offset_v;
-	offset_v.x = filter->mask_crop_left;
-	offset_v.y = filter->mask_crop_top;
+	offset_v.x = 1.0f - right - left > 0.0f ? left : -1000.0f;
+	offset_v.y = 1.0f - bot - top > 0.0f ? top : -1000.0f;
 	gs_effect_set_vec2(offset, &offset_v);
+
+	gs_eparam_t *invert = gs_effect_get_param_by_name(effect, "inv");
+	bool invert_v = filter->mask_crop_invert;
+	gs_effect_set_bool(invert, invert_v);
+
+	float radius = filter->mask_crop_corner_radius / 100.0f *
+		       min(box_ar.x, box_ar.y);
+
+	gs_eparam_t *corner_radius =
+		gs_effect_get_param_by_name(effect, "corner_radius");
+	gs_effect_set_float(corner_radius, radius);
 
 	set_blending_parameters();
 
@@ -486,27 +511,31 @@ static obs_properties_t *composite_blur_properties(void *data)
 	obs_properties_add_float_slider(
 		effect_mask_crop, "effect_mask_crop_top",
 		obs_module_text("CompositeBlurFilter.EffectMask.Crop.Top"), 0.0,
-		100.01, 0.1);
+		100.01, 0.01);
 
 	obs_properties_add_float_slider(
 		effect_mask_crop, "effect_mask_crop_bottom",
 		obs_module_text("CompositeBlurFilter.EffectMask.Crop.Bottom"),
-		0.0, 100.01, 0.1);
+		0.0, 100.01, 0.01);
 
 	obs_properties_add_float_slider(
 		effect_mask_crop, "effect_mask_crop_left",
 		obs_module_text("CompositeBlurFilter.EffectMask.Crop.Left"),
-		0.0, 100.01, 0.1);
+		0.0, 100.01, 0.01);
 
 	obs_properties_add_float_slider(
 		effect_mask_crop, "effect_mask_crop_right",
 		obs_module_text("CompositeBlurFilter.EffectMask.Crop.Right"),
-		0.0, 100.01, 0.1);
+		0.0, 100.01, 0.01);
 
 	obs_properties_add_float_slider(
 		effect_mask_crop, "effect_mask_crop_corner_radius",
 		obs_module_text("CompositeBlurFilter.EffectMask.CornerRadius"),
-		0.0, 50.01, 0.1);
+		0.0, 50.01, 0.01);
+
+	obs_properties_add_bool(
+		effect_mask_crop, "effect_mask_crop_invert",
+		obs_module_text("CompositeBlurFilter.EffectMask.Invert"));
 
 	obs_properties_add_group(
 		props, "effect_mask_crop",
@@ -766,10 +795,10 @@ static void load_composite_effect(composite_blur_filter_data_t *filter)
 
 static void load_crop_mask_effect(composite_blur_filter_data_t *filter)
 {
-	if (filter->composite_effect != NULL) {
+	if (filter->effect_mask_effect != NULL) {
 		obs_enter_graphics();
-		gs_effect_destroy(filter->composite_effect);
-		filter->composite_effect = NULL;
+		gs_effect_destroy(filter->effect_mask_effect);
+		filter->effect_mask_effect = NULL;
 		obs_leave_graphics();
 	}
 
@@ -781,11 +810,12 @@ static void load_crop_mask_effect(composite_blur_filter_data_t *filter)
 	char *errors = NULL;
 
 	obs_enter_graphics();
-	filter->composite_effect = gs_effect_create(shader_text, NULL, &errors);
+	filter->effect_mask_effect =
+		gs_effect_create(shader_text, NULL, &errors);
 	obs_leave_graphics();
 
 	bfree(shader_text);
-	if (filter->composite_effect == NULL) {
+	if (filter->effect_mask_effect == NULL) {
 		blog(LOG_WARNING,
 		     "[obs-composite-blur] Unable to load effect_mask_crop.effect file.  Errors:\n%s",
 		     (errors == NULL || strlen(errors) == 0 ? "(None)"
@@ -793,11 +823,11 @@ static void load_crop_mask_effect(composite_blur_filter_data_t *filter)
 		bfree(errors);
 	} else {
 		size_t effect_count =
-			gs_effect_get_num_params(filter->composite_effect);
+			gs_effect_get_num_params(filter->effect_mask_effect);
 		for (size_t effect_index = 0; effect_index < effect_count;
 		     effect_index++) {
 			gs_eparam_t *param = gs_effect_get_param_by_idx(
-				filter->composite_effect, effect_index);
+				filter->effect_mask_effect, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
 		}
