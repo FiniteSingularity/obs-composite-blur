@@ -1,0 +1,48 @@
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform texture2d filtered_image;
+uniform texture2d alpha_source;
+
+uniform float4 rgba_weights;
+uniform float multiplier = 1.0;
+
+uniform bool inv = false;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData {
+    float4 pos : POSITION;
+    float2 uv : TEXCOORD0;
+};
+
+VertData mainTransform(VertData v_in)
+{
+    v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+    return v_in;
+}
+
+float4 mainImage(VertData v_in) : TARGET
+{
+    float4 alpha_sample = alpha_source.Sample(textureSampler, v_in.uv) * rgba_weights;
+    float alpha = (alpha_sample.r + alpha_sample.g + alpha_sample.b + alpha_sample.a);
+    alpha = inv ? 1.0-alpha : alpha;
+    alpha *= multiplier;
+    alpha = clamp(alpha, 0.0, 1.0);
+    return filtered_image.Sample(textureSampler, v_in.uv) * alpha + image.Sample(textureSampler, v_in.uv) * (1.0-alpha);
+    //return inv ? image.Sample(textureSampler, v_in.uv) : filtered_image.Sample(textureSampler, v_in.uv);
+}
+
+technique Draw
+{
+    pass
+    {
+        vertex_shader = mainTransform(v_in);
+        pixel_shader = mainImage(v_in);
+    }
+}

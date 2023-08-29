@@ -58,6 +58,19 @@
 #define EFFECT_MASK_TYPE_IMAGE 5
 #define EFFECT_MASK_TYPE_IMAGE_LABEL "CompositeBlurFilter.EffectMask.Image"
 
+#define EFFECT_MASK_SOURCE_FILTER_ALPHA 0
+#define EFFECT_MASK_SOURCE_FILTER_ALPHA_LABEL \
+	"CompositeBlurFilter.EffectMask.Source.Alpha"
+#define EFFECT_MASK_SOURCE_FILTER_GRAYSCALE 1
+#define EFFECT_MASK_SOURCE_FILTER_GRAYSCALE_LABEL \
+	"CompositeBlurFilter.EffectMask.Source.Grayscale"
+#define EFFECT_MASK_SOURCE_FILTER_LUMINOSITY 2
+#define EFFECT_MASK_SOURCE_FILTER_LUMINOSITY_LABEL \
+	"CompositeBlurFilter.EffectMask.Source.Luminosity"
+#define EFFECT_MASK_SOURCE_FILTER_SLIDERS 3
+#define EFFECT_MASK_SOURCE_FILTER_SLIDERS_LABEL \
+	"CompositeBlurFilter.EffectMask.Source.Sliders"
+
 typedef DARRAY(float) fDarray;
 
 struct composite_blur_filter_data;
@@ -121,6 +134,14 @@ struct composite_blur_filter_data {
 	float mask_crop_bot;
 	float mask_crop_corner_radius;
 	bool mask_crop_invert;
+	int mask_source_filter_type;
+	float mask_source_filter_red;
+	float mask_source_filter_green;
+	float mask_source_filter_blue;
+	float mask_source_filter_alpha;
+	float mask_source_multiplier;
+	bool mask_source_invert;
+	obs_weak_source_t *mask_source_source;
 
 	obs_weak_source_t *background;
 	uint32_t width;
@@ -174,5 +195,11 @@ static bool settings_blur_tilt_shift(obs_properties_t *props);
 
 static void apply_effect_mask(composite_blur_filter_data_t *filter);
 static void apply_effect_mask_crop(composite_blur_filter_data_t *filter);
+static void apply_effect_mask_source(composite_blur_filter_data_t *filter);
 static void load_crop_mask_effect(composite_blur_filter_data_t *filter);
+static void load_source_mask_effect(composite_blur_filter_data_t *filter);
 static void effect_mask_load_effect(composite_blur_filter_data_t *filter);
+
+static bool setting_effect_mask_source_filter_modified(obs_properties_t *props,
+						       obs_property_t *p,
+						       obs_data_t *settings);

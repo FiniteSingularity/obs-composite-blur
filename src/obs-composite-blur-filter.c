@@ -62,6 +62,15 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->mask_crop_corner_radius = 0.0f;
 	filter->mask_crop_invert = false;
 
+	filter->mask_source_filter_type = EFFECT_MASK_SOURCE_FILTER_ALPHA;
+	filter->mask_source_filter_red = 0.0;
+	filter->mask_source_filter_green = 0.0;
+	filter->mask_source_filter_blue = 0.0;
+	filter->mask_source_filter_alpha = 0.0;
+	filter->mask_source_multiplier = 1.0;
+	filter->mask_source_source = NULL;
+	filter->mask_source_invert = false;
+
 	da_init(filter->kernel);
 
 	obs_source_update(source, settings);
@@ -167,6 +176,60 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		filter->mask_type_last = filter->mask_type;
 		effect_mask_load_effect(filter);
 	}
+
+	filter->mask_source_filter_type = (int)obs_data_get_int(
+		settings, "effect_mask_source_filter_list");
+	switch (filter->mask_source_filter_type) {
+	case EFFECT_MASK_SOURCE_FILTER_ALPHA:
+		filter->mask_source_filter_red = 0.0f;
+		filter->mask_source_filter_green = 0.0f;
+		filter->mask_source_filter_blue = 0.0f;
+		filter->mask_source_filter_alpha = 1.0f;
+		break;
+	case EFFECT_MASK_SOURCE_FILTER_GRAYSCALE:
+		filter->mask_source_filter_red = 0.33334f;
+		filter->mask_source_filter_green = 0.33333f;
+		filter->mask_source_filter_blue = 0.33333f;
+		filter->mask_source_filter_alpha = 0.0f;
+		break;
+	case EFFECT_MASK_SOURCE_FILTER_LUMINOSITY:
+		filter->mask_source_filter_red = 0.299f;
+		filter->mask_source_filter_green = 0.587f;
+		filter->mask_source_filter_blue = 0.114f;
+		filter->mask_source_filter_alpha = 0.0f;
+		break;
+	case EFFECT_MASK_SOURCE_FILTER_SLIDERS:
+		filter->mask_source_filter_red = (float)obs_data_get_double(
+			settings, "effect_mask_source_filter_red");
+		filter->mask_source_filter_green = (float)obs_data_get_double(
+			settings, "effect_mask_source_filter_green");
+		filter->mask_source_filter_blue = (float)obs_data_get_double(
+			settings, "effect_mask_source_filter_blue");
+		filter->mask_source_filter_alpha = (float)obs_data_get_double(
+			settings, "effect_mask_source_filter_alpha");
+		break;
+	}
+
+	const char *mask_source_name =
+		obs_data_get_string(settings, "effect_mask_source_source");
+	obs_source_t *mask_source =
+		(mask_source_name && strlen(mask_source_name))
+			? obs_get_source_by_name(mask_source_name)
+			: NULL;
+	if (mask_source) {
+		obs_weak_source_release(filter->mask_source_source);
+		filter->mask_source_source =
+			obs_source_get_weak_source(mask_source);
+		obs_source_release(mask_source);
+	} else {
+		filter->mask_source_source = NULL;
+	}
+
+	filter->mask_source_multiplier = (float)obs_data_get_double(
+		settings, "effect_mask_source_filter_multiplier");
+
+	filter->mask_source_invert =
+		obs_data_get_bool(settings, "effect_mask_source_invert");
 
 	filter->radius = (float)obs_data_get_double(settings, "radius");
 	filter->passes = (int)obs_data_get_int(settings, "passes");
@@ -286,9 +349,117 @@ static void apply_effect_mask(composite_blur_filter_data_t *filter)
 		apply_effect_mask_crop(filter);
 		break;
 	case EFFECT_MASK_TYPE_SOURCE:
-
+		apply_effect_mask_source(filter);
 		break;
 	}
+}
+
+static void apply_effect_mask_source(composite_blur_filter_data_t *filter)
+{
+	// Get source
+	obs_source_t *source =
+		filter->mask_source_source
+			? obs_weak_source_get_source(filter->mask_source_source)
+			: NULL;
+	if (!source) {
+		return;
+	}
+
+	const enum gs_color_space preferred_spaces[] = {
+		GS_CS_SRGB,
+		GS_CS_SRGB_16F,
+		GS_CS_709_EXTENDED,
+	};
+	const enum gs_color_space space = obs_source_get_color_space(
+		source, OBS_COUNTOF(preferred_spaces), preferred_spaces);
+	const enum gs_color_format format = gs_get_format_from_space(space);
+
+	// Set up a tex renderer for source
+	gs_texrender_t *source_render = gs_texrender_create(format, GS_ZS_NONE);
+	uint32_t base_width = obs_source_get_base_width(source);
+	uint32_t base_height = obs_source_get_base_height(source);
+	gs_blend_state_push();
+	gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
+	if (gs_texrender_begin_with_color_space(source_render, base_width,
+						base_height, space)) {
+		const float w = (float)base_width;
+		const float h = (float)base_height;
+		uint32_t flags = obs_source_get_output_flags(source);
+		const bool custom_draw = (flags & OBS_SOURCE_CUSTOM_DRAW) != 0;
+		const bool async = (flags & OBS_SOURCE_ASYNC) != 0;
+		struct vec4 clear_color;
+
+		vec4_zero(&clear_color);
+		gs_clear(GS_CLEAR_COLOR, &clear_color, 0.0f, 0);
+		gs_ortho(0.0f, w, 0.0f, h, -100.0f, 100.0f);
+
+		if (!custom_draw && !async)
+			obs_source_default_render(source);
+		else
+			obs_source_video_render(source);
+		gs_texrender_end(source_render);
+	}
+	gs_blend_state_pop();
+	obs_source_release(source);
+	gs_texture_t *alpha_texture = gs_texrender_get_texture(source_render);
+
+	// Swap output with render
+	gs_texrender_t *tmp = filter->output_texrender;
+	filter->output_texrender = filter->render;
+	filter->render = tmp;
+
+	gs_effect_t *effect = filter->effect_mask_effect;
+	gs_texture_t *texture =
+		gs_texrender_get_texture(filter->input_texrender);
+	gs_texture_t *filtered_texture =
+		gs_texrender_get_texture(filter->render);
+
+	if (!effect || !texture || !filtered_texture) {
+		return;
+	}
+	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
+	gs_effect_set_texture(image, texture);
+
+	gs_eparam_t *filtered_image =
+		gs_effect_get_param_by_name(effect, "filtered_image");
+	gs_effect_set_texture(filtered_image, filtered_texture);
+
+	gs_eparam_t *alpha_source =
+		gs_effect_get_param_by_name(effect, "alpha_source");
+	gs_effect_set_texture(alpha_source, alpha_texture);
+
+	gs_eparam_t *invert = gs_effect_get_param_by_name(effect, "inv");
+	bool invert_v = filter->mask_source_invert;
+	gs_effect_set_bool(invert, invert_v);
+
+	gs_eparam_t *rgba_weights =
+		gs_effect_get_param_by_name(effect, "rgba_weights");
+	struct vec4 weights;
+	weights.x = filter->mask_source_filter_red;
+	weights.y = filter->mask_source_filter_green;
+	weights.z = filter->mask_source_filter_blue;
+	weights.w = filter->mask_source_filter_alpha;
+	gs_effect_set_vec4(rgba_weights, &weights);
+
+	gs_eparam_t *multiplier =
+		gs_effect_get_param_by_name(effect, "multiplier");
+	gs_effect_set_float(multiplier, filter->mask_source_multiplier);
+
+	set_blending_parameters();
+
+	filter->output_texrender =
+		create_or_reset_texrender(filter->output_texrender);
+
+	if (gs_texrender_begin(filter->output_texrender, filter->width,
+			       filter->height)) {
+		while (gs_effect_loop(effect, "Draw"))
+			gs_draw_sprite(texture, 0, filter->width,
+				       filter->height);
+		gs_texrender_end(filter->output_texrender);
+	}
+	texture = gs_texrender_get_texture(filter->output_texrender);
+	gs_texrender_destroy(source_render);
+	gs_blend_state_pop();
 }
 
 static void apply_effect_mask_crop(composite_blur_filter_data_t *filter)
@@ -502,9 +673,85 @@ static obs_properties_t *composite_blur_properties(void *data)
 	obs_property_list_add_int(effect_mask_list,
 				  obs_module_text(EFFECT_MASK_TYPE_CROP_LABEL),
 				  EFFECT_MASK_TYPE_CROP);
+	obs_property_list_add_int(
+		effect_mask_list,
+		obs_module_text(EFFECT_MASK_TYPE_SOURCE_LABEL),
+		EFFECT_MASK_TYPE_SOURCE);
 
 	obs_property_set_modified_callback(effect_mask_list,
 					   setting_effect_mask_modified);
+
+	obs_properties_t *effect_mask_source = obs_properties_create();
+
+	obs_property_t *effect_mask_source_source = obs_properties_add_list(
+		effect_mask_source, "effect_mask_source_source",
+		obs_module_text("CompositeBlurFilter.EffectMask.Source.Source"),
+		OBS_COMBO_TYPE_EDITABLE, OBS_COMBO_FORMAT_STRING);
+	obs_property_list_add_string(effect_mask_source_source, "None", "");
+	obs_enum_sources(add_source_to_list, effect_mask_source_source);
+	obs_enum_scenes(add_source_to_list, effect_mask_source_source);
+
+	obs_property_t *effect_mask_source_filter_list = obs_properties_add_list(
+		effect_mask_source, "effect_mask_source_filter_list",
+		obs_module_text("CompositeBlurFilter.EffectMask.Source.Filter"),
+		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+
+	obs_property_list_add_int(
+		effect_mask_source_filter_list,
+		obs_module_text(EFFECT_MASK_SOURCE_FILTER_ALPHA_LABEL),
+		EFFECT_MASK_SOURCE_FILTER_ALPHA);
+	obs_property_list_add_int(
+		effect_mask_source_filter_list,
+		obs_module_text(EFFECT_MASK_SOURCE_FILTER_GRAYSCALE_LABEL),
+		EFFECT_MASK_SOURCE_FILTER_GRAYSCALE);
+	obs_property_list_add_int(
+		effect_mask_source_filter_list,
+		obs_module_text(EFFECT_MASK_SOURCE_FILTER_LUMINOSITY_LABEL),
+		EFFECT_MASK_SOURCE_FILTER_LUMINOSITY);
+	obs_property_list_add_int(
+		effect_mask_source_filter_list,
+		obs_module_text(EFFECT_MASK_SOURCE_FILTER_SLIDERS_LABEL),
+		EFFECT_MASK_SOURCE_FILTER_SLIDERS);
+
+	obs_property_set_modified_callback(
+		effect_mask_source_filter_list,
+		setting_effect_mask_source_filter_modified);
+
+	obs_properties_add_float_slider(
+		effect_mask_source, "effect_mask_source_filter_red",
+		obs_module_text("CompositeBlurFilter.Channel.Red"), -100.01,
+		100.01, 0.01);
+
+	obs_properties_add_float_slider(
+		effect_mask_source, "effect_mask_source_filter_green",
+		obs_module_text("CompositeBlurFilter.Channel.Green"), -100.01,
+		100.01, 0.01);
+
+	obs_properties_add_float_slider(
+		effect_mask_source, "effect_mask_source_filter_blue",
+		obs_module_text("CompositeBlurFilter.Channel.Blue"), -100.01,
+		100.01, 0.01);
+
+	obs_properties_add_float_slider(
+		effect_mask_source, "effect_mask_source_filter_alpha",
+		obs_module_text("CompositeBlurFilter.Channel.Alpha"), -100.01,
+		100.01, 0.01);
+
+	obs_properties_add_float_slider(
+		effect_mask_source, "effect_mask_source_filter_multiplier",
+		obs_module_text(
+			"CompositeBlurFilter.EffectMask.Source.Multiplier"),
+		-100.01, 100.01, 0.01);
+
+	obs_properties_add_bool(
+		effect_mask_source, "effect_mask_source_invert",
+		obs_module_text("CompositeBlurFilter.EffectMask.Invert"));
+
+	obs_properties_add_group(
+		props, "effect_mask_source",
+		obs_module_text(
+			"CompositeBlurFilter.EffectMask.SourceParameters"),
+		OBS_GROUP_NORMAL, effect_mask_source);
 
 	obs_properties_t *effect_mask_crop = obs_properties_create();
 
@@ -546,6 +793,38 @@ static obs_properties_t *composite_blur_properties(void *data)
 	return props;
 }
 
+static bool setting_effect_mask_source_filter_modified(obs_properties_t *props,
+						       obs_property_t *p,
+						       obs_data_t *settings)
+{
+	UNUSED_PARAMETER(p);
+	int source_filter_type = (int)obs_data_get_int(
+		settings, "effect_mask_source_filter_list");
+	switch (source_filter_type) {
+	case EFFECT_MASK_SOURCE_FILTER_SLIDERS:
+		setting_visibility("effect_mask_source_filter_red", true,
+				   props);
+		setting_visibility("effect_mask_source_filter_green", true,
+				   props);
+		setting_visibility("effect_mask_source_filter_blue", true,
+				   props);
+		setting_visibility("effect_mask_source_filter_alpha", true,
+				   props);
+		break;
+	default:
+		setting_visibility("effect_mask_source_filter_red", false,
+				   props);
+		setting_visibility("effect_mask_source_filter_green", false,
+				   props);
+		setting_visibility("effect_mask_source_filter_blue", false,
+				   props);
+		setting_visibility("effect_mask_source_filter_alpha", false,
+				   props);
+		break;
+	}
+	return true;
+}
+
 static bool setting_effect_mask_modified(obs_properties_t *props,
 					 obs_property_t *p,
 					 obs_data_t *settings)
@@ -555,9 +834,15 @@ static bool setting_effect_mask_modified(obs_properties_t *props,
 	switch (mask_type) {
 	case EFFECT_MASK_TYPE_NONE:
 		setting_visibility("effect_mask_crop", false, props);
+		setting_visibility("effect_mask_source", false, props);
 		break;
 	case EFFECT_MASK_TYPE_CROP:
 		setting_visibility("effect_mask_crop", true, props);
+		setting_visibility("effect_mask_source", false, props);
+		break;
+	case EFFECT_MASK_TYPE_SOURCE:
+		setting_visibility("effect_mask_crop", false, props);
+		setting_visibility("effect_mask_source", true, props);
 		break;
 	}
 	return true;
@@ -568,6 +853,9 @@ static void effect_mask_load_effect(composite_blur_filter_data_t *filter)
 	switch (filter->mask_type) {
 	case EFFECT_MASK_TYPE_CROP:
 		load_crop_mask_effect(filter);
+		break;
+	case EFFECT_MASK_TYPE_SOURCE:
+		load_source_mask_effect(filter);
 		break;
 	}
 }
@@ -806,6 +1094,47 @@ static void load_crop_mask_effect(composite_blur_filter_data_t *filter)
 	struct dstr filename = {0};
 	dstr_cat(&filename, obs_get_module_data_path(obs_current_module()));
 	dstr_cat(&filename, "/shaders/effect_mask_crop.effect");
+	shader_text = load_shader_from_file(filename.array);
+	char *errors = NULL;
+
+	obs_enter_graphics();
+	filter->effect_mask_effect =
+		gs_effect_create(shader_text, NULL, &errors);
+	obs_leave_graphics();
+
+	bfree(shader_text);
+	if (filter->effect_mask_effect == NULL) {
+		blog(LOG_WARNING,
+		     "[obs-composite-blur] Unable to load effect_mask_crop.effect file.  Errors:\n%s",
+		     (errors == NULL || strlen(errors) == 0 ? "(None)"
+							    : errors));
+		bfree(errors);
+	} else {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->effect_mask_effect);
+		for (size_t effect_index = 0; effect_index < effect_count;
+		     effect_index++) {
+			gs_eparam_t *param = gs_effect_get_param_by_idx(
+				filter->effect_mask_effect, effect_index);
+			struct gs_effect_param_info info;
+			gs_effect_get_param_info(param, &info);
+		}
+	}
+}
+
+static void load_source_mask_effect(composite_blur_filter_data_t *filter)
+{
+	if (filter->effect_mask_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->effect_mask_effect);
+		filter->effect_mask_effect = NULL;
+		obs_leave_graphics();
+	}
+
+	char *shader_text = NULL;
+	struct dstr filename = {0};
+	dstr_cat(&filename, obs_get_module_data_path(obs_current_module()));
+	dstr_cat(&filename, "/shaders/effect_mask_source.effect");
 	shader_text = load_shader_from_file(filename.array);
 	char *errors = NULL;
 
