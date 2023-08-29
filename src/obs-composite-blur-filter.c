@@ -492,17 +492,17 @@ static void apply_effect_mask_crop(composite_blur_filter_data_t *filter)
 
 	gs_eparam_t *scale = gs_effect_get_param_by_name(effect, "scale");
 	struct vec2 scale_v;
-	scale_v.x = 1.0f / max(1.0f - right - left, 1.e-6f);
-	scale_v.y = 1.0f / max(1.0f - bot - top, 1.e-6f);
+	scale_v.x = 1.0f / fmax(1.0f - right - left, 1.e-6f);
+	scale_v.y = 1.0f / fmax(1.0f - bot - top, 1.e-6f);
 	gs_effect_set_vec2(scale, &scale_v);
 
 	gs_eparam_t *box_aspect_ratio =
 		gs_effect_get_param_by_name(effect, "box_aspect_ratio");
 	struct vec2 box_ar;
 	box_ar.x = (1.0f - right - left) * filter->width /
-		   min(filter->width, filter->height);
+		   fmin(filter->width, filter->height);
 	box_ar.y = (1.0f - bot - top) * filter->height /
-		   min(filter->width, filter->height);
+		   fmin(filter->width, filter->height);
 	gs_effect_set_vec2(box_aspect_ratio, &box_ar);
 
 	gs_eparam_t *offset = gs_effect_get_param_by_name(effect, "offset");
@@ -516,7 +516,7 @@ static void apply_effect_mask_crop(composite_blur_filter_data_t *filter)
 	gs_effect_set_bool(invert, invert_v);
 
 	float radius = filter->mask_crop_corner_radius / 100.0f *
-		       min(box_ar.x, box_ar.y);
+		       fmin(box_ar.x, box_ar.y);
 
 	gs_eparam_t *corner_radius =
 		gs_effect_get_param_by_name(effect, "corner_radius");
