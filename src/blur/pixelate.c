@@ -70,6 +70,8 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 
 	if (gs_texrender_begin(data->output_texrender, data->width,
 			       data->height)) {
+		gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height,
+			 -100.0f, 100.0f);
 		while (gs_effect_loop(effect, "Draw"))
 			gs_draw_sprite(texture, 0, data->width, data->height);
 		gs_texrender_end(data->output_texrender);
