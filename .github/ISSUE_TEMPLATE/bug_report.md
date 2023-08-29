@@ -29,5 +29,9 @@ If applicable, add screenshots to help explain your problem.
  - OBS Composite Blur Plugin Version: [e.g. 0.0.1-alpha]
  - Blur Algorithm/Type: [e.g. Gaussian, Area]
 
+**GPU**
+ - GPU make/model [e.g.- nvidia RTX 3800]
+ - GPU VRAM [e.g.- 10Gb]
+
 **Additional context**
 Add any other context about the problem here.
