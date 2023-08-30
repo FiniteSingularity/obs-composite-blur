@@ -8,7 +8,12 @@
 
 #include <stdio.h>
 
+#include "version.h"
 #include "obs-utils.h"
+
+#define PLUGIN_INFO                                                                                                     \
+	"<a href=\"https://github.com/finitesingularity/obs-composite-blur/\">Composite Blur</a> (" PROJECT_VERSION \
+	") by <a href=\"https://twitch.tv/finitesingularity\">FiniteSingularity</a>"
 
 #define ALGO_NONE 0
 #define ALGO_NONE_LABEL "None"

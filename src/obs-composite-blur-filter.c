@@ -824,6 +824,9 @@ static obs_properties_t *composite_blur_properties(void *data)
 			"CompositeBlurFilter.EffectMask.CropParameters"),
 		OBS_GROUP_NORMAL, effect_mask_crop);
 
+	obs_properties_add_text(props, "plugin_info", PLUGIN_INFO,
+				OBS_TEXT_INFO);
+
 	return props;
 }
 
