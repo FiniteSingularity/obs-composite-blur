@@ -11,7 +11,7 @@
 #include "version.h"
 #include "obs-utils.h"
 
-#define PLUGIN_INFO                                                                                                     \
+#define PLUGIN_INFO                                                                                                 \
 	"<a href=\"https://github.com/finitesingularity/obs-composite-blur/\">Composite Blur</a> (" PROJECT_VERSION \
 	") by <a href=\"https://twitch.tv/finitesingularity\">FiniteSingularity</a>"
 
@@ -204,6 +204,14 @@ struct composite_blur_filter_data {
 	gs_eparam_t *param_mask_source_invert;
 	bool mask_source_invert;
 	obs_weak_source_t *mask_source_source;
+	gs_eparam_t *param_mask_circle_center;
+	float mask_circle_center_x;
+	float mask_circle_center_y;
+	gs_eparam_t *param_mask_circle_radius;
+	float mask_circle_radius;
+	gs_eparam_t *param_mask_circle_inv;
+	bool mask_circle_inv;
+	gs_eparam_t *param_mask_circle_uv_scale;
 
 	bool rendering;
 	bool reload;
@@ -255,8 +263,10 @@ static bool settings_blur_tilt_shift(obs_properties_t *props);
 static void apply_effect_mask(composite_blur_filter_data_t *filter);
 static void apply_effect_mask_crop(composite_blur_filter_data_t *filter);
 static void apply_effect_mask_source(composite_blur_filter_data_t *filter);
+static void apply_effect_mask_circle(composite_blur_filter_data_t *filter);
 static void load_crop_mask_effect(composite_blur_filter_data_t *filter);
 static void load_source_mask_effect(composite_blur_filter_data_t *filter);
+static void load_circle_mask_effect(composite_blur_filter_data_t *filter);
 static void effect_mask_load_effect(composite_blur_filter_data_t *filter);
 
 static bool setting_effect_mask_source_filter_modified(obs_properties_t *props,

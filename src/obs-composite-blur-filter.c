@@ -18,8 +18,7 @@ struct obs_source_info obs_composite_blur = {
 	.get_width = composite_blur_width,
 	.get_height = composite_blur_height,
 	.get_properties = composite_blur_properties,
-	.get_defaults = composite_blur_defaults
-	};
+	.get_defaults = composite_blur_defaults};
 
 static const char *composite_blur_name(void *unused)
 {
@@ -27,13 +26,22 @@ static const char *composite_blur_name(void *unused)
 	return obs_module_text("CompositeBlurFilter");
 }
 
-static void composite_blur_defaults(obs_data_t *settings) {
-	obs_data_set_default_double(settings, "radius", 0.0);
+static void composite_blur_defaults(obs_data_t *settings)
+{
+	obs_data_set_default_double(settings, "radius", 10.0);
 	obs_data_set_default_string(settings, "background", "None");
 	obs_data_set_default_int(settings, "passes", 1);
-	obs_data_set_default_int(settings, "kawase_passes", 1);
-	obs_data_set_default_string(settings, "effect_mask_source_source", "None");
-	obs_data_set_default_double(settings, "effect_mask_source_filter_multiplier", 1.0);
+	obs_data_set_default_int(settings, "kawase_passes", 10);
+	obs_data_set_default_string(settings, "effect_mask_source_source",
+				    "None");
+	obs_data_set_default_double(
+		settings, "effect_mask_source_filter_multiplier", 1.0);
+	obs_data_set_default_double(settings, "effect_mask_circle_center_x",
+				    50.0);
+	obs_data_set_default_double(settings, "effect_mask_circle_center_y",
+				    50.0);
+	obs_data_set_default_double(settings, "effect_mask_circle_radius",
+				    10.0);
 }
 
 static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
@@ -61,7 +69,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->pixelate_type = 1;
 	filter->pixelate_type_last = -1;
 
-// Params
+	// Params
 	filter->param_uv_size = NULL;
 	filter->param_radius = NULL;
 	filter->param_texel_step = NULL;
@@ -84,6 +92,10 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->param_mask_source_rgba_weights = NULL;
 	filter->param_mask_source_multiplier = NULL;
 	filter->param_mask_source_invert = NULL;
+	filter->param_mask_circle_center = NULL;
+	filter->param_mask_circle_radius = NULL;
+	filter->param_mask_circle_inv = NULL;
+	filter->param_mask_circle_uv_scale = NULL;
 
 	filter->mask_crop_left = 0.0f;
 	filter->mask_crop_right = 0.0f;
@@ -262,6 +274,15 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 	filter->mask_source_invert =
 		obs_data_get_bool(settings, "effect_mask_source_invert");
 
+	filter->mask_circle_center_x = (float)obs_data_get_double(
+		settings, "effect_mask_circle_center_x");
+	filter->mask_circle_center_y = (float)obs_data_get_double(
+		settings, "effect_mask_circle_center_y");
+	filter->mask_circle_radius = (float)obs_data_get_double(
+		settings, "effect_mask_circle_radius");
+	filter->mask_circle_inv =
+		obs_data_get_bool(settings, "effect_mask_circle_invert");
+
 	filter->radius = (float)obs_data_get_double(settings, "radius");
 	filter->passes = (int)obs_data_get_int(settings, "passes");
 	filter->kawase_passes =
@@ -383,6 +404,8 @@ static void apply_effect_mask(composite_blur_filter_data_t *filter)
 	case EFFECT_MASK_TYPE_SOURCE:
 		apply_effect_mask_source(filter);
 		break;
+	case EFFECT_MASK_TYPE_CIRCLE:
+		apply_effect_mask_circle(filter);
 	}
 }
 
@@ -452,16 +475,19 @@ static void apply_effect_mask_source(composite_blur_filter_data_t *filter)
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
-	if(filter->param_filtered_image) {
-		gs_effect_set_texture(filter->param_filtered_image, filtered_texture);
+	if (filter->param_filtered_image) {
+		gs_effect_set_texture(filter->param_filtered_image,
+				      filtered_texture);
 	}
 
-	if(filter->param_mask_source_alpha_source) {
-		gs_effect_set_texture(filter->param_mask_source_alpha_source, alpha_texture);
+	if (filter->param_mask_source_alpha_source) {
+		gs_effect_set_texture(filter->param_mask_source_alpha_source,
+				      alpha_texture);
 	}
 
-	if(filter->param_mask_source_invert) {
-		gs_effect_set_bool(filter->param_mask_source_invert, filter->mask_source_invert);
+	if (filter->param_mask_source_invert) {
+		gs_effect_set_bool(filter->param_mask_source_invert,
+				   filter->mask_source_invert);
 	}
 
 	// TODO- Move weights calculation to update.
@@ -471,12 +497,14 @@ static void apply_effect_mask_source(composite_blur_filter_data_t *filter)
 	weights.y = filter->mask_source_filter_green;
 	weights.z = filter->mask_source_filter_blue;
 	weights.w = filter->mask_source_filter_alpha;
-	if(filter->param_mask_source_rgba_weights) {
-		gs_effect_set_vec4(filter->param_mask_source_rgba_weights, &weights);
+	if (filter->param_mask_source_rgba_weights) {
+		gs_effect_set_vec4(filter->param_mask_source_rgba_weights,
+				   &weights);
 	}
 
-	if(filter->param_mask_source_multiplier) {
-		gs_effect_set_float(filter->param_mask_source_multiplier, filter->mask_source_multiplier);
+	if (filter->param_mask_source_multiplier) {
+		gs_effect_set_float(filter->param_mask_source_multiplier,
+				    filter->mask_source_multiplier);
 	}
 	set_blending_parameters();
 
@@ -518,43 +546,111 @@ static void apply_effect_mask_crop(composite_blur_filter_data_t *filter)
 	}
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
-	
-	if(filter->param_filtered_image) {
-		gs_effect_set_texture(filter->param_filtered_image, filtered_texture);
+
+	if (filter->param_filtered_image) {
+		gs_effect_set_texture(filter->param_filtered_image,
+				      filtered_texture);
 	}
 
 	struct vec2 scale;
-	scale.x = 1.0f / fmax(1.0f - right - left, 1.e-6f);
-	scale.y = 1.0f / fmax(1.0f - bot - top, 1.e-6f);
-	if(filter->param_mask_crop_scale) {
+	scale.x = 1.0f / (float)fmax(1.0f - right - left, 1.e-6f);
+	scale.y = 1.0f / (float)fmax(1.0f - bot - top, 1.e-6f);
+	if (filter->param_mask_crop_scale) {
 		gs_effect_set_vec2(filter->param_mask_crop_scale, &scale);
 	}
 
 	struct vec2 box_ar;
 	box_ar.x = (1.0f - right - left) * filter->width /
-		   fmin(filter->width, filter->height);
+		   (float)fmin(filter->width, filter->height);
 	box_ar.y = (1.0f - bot - top) * filter->height /
-		   fmin(filter->width, filter->height);
-	if(filter->param_mask_crop_box_aspect_ratio) {
-		gs_effect_set_vec2(filter->param_mask_crop_box_aspect_ratio, &box_ar);
+		   (float)fmin(filter->width, filter->height);
+	if (filter->param_mask_crop_box_aspect_ratio) {
+		gs_effect_set_vec2(filter->param_mask_crop_box_aspect_ratio,
+				   &box_ar);
 	}
 
 	struct vec2 offset;
 	offset.x = 1.0f - right - left > 0.0f ? left : -1000.0f;
 	offset.y = 1.0f - bot - top > 0.0f ? top : -1000.0f;
-	if(filter->param_mask_crop_offset) {
+	if (filter->param_mask_crop_offset) {
 		gs_effect_set_vec2(filter->param_mask_crop_offset, &offset);
 	}
 
 	bool invert_v = filter->mask_crop_invert;
-	if(filter->param_mask_crop_invert) {
+	if (filter->param_mask_crop_invert) {
 		gs_effect_set_bool(filter->param_mask_crop_invert, invert_v);
 	}
 
 	float radius = filter->mask_crop_corner_radius / 100.0f *
-		fmin(box_ar.x, box_ar.y);
-	if(filter->param_mask_crop_corner_radius) {
-		gs_effect_set_float(filter->param_mask_crop_corner_radius, radius);
+		       (float)fmin(box_ar.x, box_ar.y);
+	if (filter->param_mask_crop_corner_radius) {
+		gs_effect_set_float(filter->param_mask_crop_corner_radius,
+				    radius);
+	}
+	set_blending_parameters();
+
+	filter->output_texrender =
+		create_or_reset_texrender(filter->output_texrender);
+
+	if (gs_texrender_begin(filter->output_texrender, filter->width,
+			       filter->height)) {
+		while (gs_effect_loop(effect, "Draw"))
+			gs_draw_sprite(texture, 0, filter->width,
+				       filter->height);
+		gs_texrender_end(filter->output_texrender);
+	}
+	texture = gs_texrender_get_texture(filter->output_texrender);
+	gs_blend_state_pop();
+}
+
+static void apply_effect_mask_circle(composite_blur_filter_data_t *filter)
+{
+	// Swap output with render
+	gs_texrender_t *tmp = filter->output_texrender;
+	filter->output_texrender = filter->render;
+	filter->render = tmp;
+
+	gs_effect_t *effect = filter->effect_mask_effect;
+	gs_texture_t *texture =
+		gs_texrender_get_texture(filter->input_texrender);
+	gs_texture_t *filtered_texture =
+		gs_texrender_get_texture(filter->render);
+
+	if (!effect || !texture || !filtered_texture) {
+		return;
+	}
+	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
+	gs_effect_set_texture(image, texture);
+
+	if (filter->param_filtered_image) {
+		gs_effect_set_texture(filter->param_filtered_image,
+				      filtered_texture);
+	}
+
+	struct vec2 center;
+	center.x = filter->mask_circle_center_x / 100.0f;
+	center.y = filter->mask_circle_center_y / 100.0f;
+	if (filter->param_mask_circle_center) {
+		gs_effect_set_vec2(filter->param_mask_circle_center, &center);
+	}
+
+	struct vec2 uv_scale;
+	uv_scale.x = filter->width / (float)fmin(filter->width, filter->height);
+	uv_scale.y =
+		filter->height / (float)fmin(filter->width, filter->height);
+	if (filter->param_mask_circle_uv_scale) {
+		gs_effect_set_vec2(filter->param_mask_circle_uv_scale,
+				   &uv_scale);
+	}
+
+	bool invert = filter->mask_circle_inv;
+	if (filter->param_mask_circle_inv) {
+		gs_effect_set_bool(filter->param_mask_circle_inv, invert);
+	}
+
+	float radius = filter->mask_circle_radius / 100.0f;
+	if (filter->param_mask_circle_radius) {
+		gs_effect_set_float(filter->param_mask_circle_radius, radius);
 	}
 	set_blending_parameters();
 
@@ -709,11 +805,44 @@ static obs_properties_t *composite_blur_properties(void *data)
 				  EFFECT_MASK_TYPE_CROP);
 	obs_property_list_add_int(
 		effect_mask_list,
+		obs_module_text(EFFECT_MASK_TYPE_CIRCLE_LABEL),
+		EFFECT_MASK_TYPE_CIRCLE);
+	obs_property_list_add_int(
+		effect_mask_list,
 		obs_module_text(EFFECT_MASK_TYPE_SOURCE_LABEL),
 		EFFECT_MASK_TYPE_SOURCE);
 
 	obs_property_set_modified_callback(effect_mask_list,
 					   setting_effect_mask_modified);
+
+	obs_properties_t *effect_mask_circle = obs_properties_create();
+
+	obs_properties_add_float_slider(
+		effect_mask_circle, "effect_mask_circle_center_x",
+		obs_module_text(
+			"CompositeBlurFilter.EffectMask.Circle.CenterX"),
+		-500.01, 600.01, 0.01);
+
+	obs_properties_add_float_slider(
+		effect_mask_circle, "effect_mask_circle_center_y",
+		obs_module_text(
+			"CompositeBlurFilter.EffectMask.Circle.CenterY"),
+		-500.01, 600.01, 0.01);
+
+	obs_properties_add_float_slider(
+		effect_mask_circle, "effect_mask_circle_radius",
+		obs_module_text("CompositeBlurFilter.EffectMask.Circle.Radius"),
+		0.0, 500.01, 0.01);
+
+	obs_properties_add_bool(
+		effect_mask_circle, "effect_mask_circle_invert",
+		obs_module_text("CompositeBlurFilter.EffectMask.Invert"));
+
+	obs_properties_add_group(
+		props, "effect_mask_circle",
+		obs_module_text(
+			"CompositeBlurFilter.EffectMask.CircleParameters"),
+		OBS_GROUP_NORMAL, effect_mask_circle);
 
 	obs_properties_t *effect_mask_source = obs_properties_create();
 
@@ -872,14 +1001,22 @@ static bool setting_effect_mask_modified(obs_properties_t *props,
 	case EFFECT_MASK_TYPE_NONE:
 		setting_visibility("effect_mask_crop", false, props);
 		setting_visibility("effect_mask_source", false, props);
+		setting_visibility("effect_mask_circle", false, props);
 		break;
 	case EFFECT_MASK_TYPE_CROP:
 		setting_visibility("effect_mask_crop", true, props);
 		setting_visibility("effect_mask_source", false, props);
+		setting_visibility("effect_mask_circle", false, props);
+		break;
+	case EFFECT_MASK_TYPE_CIRCLE:
+		setting_visibility("effect_mask_crop", false, props);
+		setting_visibility("effect_mask_source", false, props);
+		setting_visibility("effect_mask_circle", true, props);
 		break;
 	case EFFECT_MASK_TYPE_SOURCE:
 		setting_visibility("effect_mask_crop", false, props);
 		setting_visibility("effect_mask_source", true, props);
+		setting_visibility("effect_mask_circle", false, props);
 		break;
 	}
 	return true;
@@ -893,6 +1030,9 @@ static void effect_mask_load_effect(composite_blur_filter_data_t *filter)
 		break;
 	case EFFECT_MASK_TYPE_SOURCE:
 		load_source_mask_effect(filter);
+		break;
+	case EFFECT_MASK_TYPE_CIRCLE:
+		load_circle_mask_effect(filter);
 		break;
 	}
 }
@@ -1157,15 +1297,16 @@ static void load_crop_mask_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "filtered_image") == 0) {
 				filter->param_filtered_image = param;
-			} else if(strcmp(info.name, "scale") == 0) {
+			} else if (strcmp(info.name, "scale") == 0) {
 				filter->param_mask_crop_scale = param;
-			} else if(strcmp(info.name, "offset") == 0) {
+			} else if (strcmp(info.name, "offset") == 0) {
 				filter->param_mask_crop_offset = param;
-			} else if(strcmp(info.name, "box_aspect_ratio") == 0) {
-				filter->param_mask_crop_box_aspect_ratio = param;
-			} else if(strcmp(info.name, "corner_radius") == 0) {
+			} else if (strcmp(info.name, "box_aspect_ratio") == 0) {
+				filter->param_mask_crop_box_aspect_ratio =
+					param;
+			} else if (strcmp(info.name, "corner_radius") == 0) {
 				filter->param_mask_crop_corner_radius = param;
-			} else if(strcmp(info.name, "inv") == 0) {
+			} else if (strcmp(info.name, "inv") == 0) {
 				filter->param_mask_crop_invert = param;
 			}
 		}
@@ -1211,14 +1352,67 @@ static void load_source_mask_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "filtered_image") == 0) {
 				filter->param_filtered_image = param;
-			} else if(strcmp(info.name, "alpha_source") == 0) {
+			} else if (strcmp(info.name, "alpha_source") == 0) {
 				filter->param_mask_source_alpha_source = param;
-			} else if(strcmp(info.name, "rgba_weights") == 0) {
+			} else if (strcmp(info.name, "rgba_weights") == 0) {
 				filter->param_mask_source_rgba_weights = param;
-			} else if(strcmp(info.name, "multiplier") == 0) {
-				filter->param_mask_source_multiplier= param;
-			} else if(strcmp(info.name, "inv") == 0) {
+			} else if (strcmp(info.name, "multiplier") == 0) {
+				filter->param_mask_source_multiplier = param;
+			} else if (strcmp(info.name, "inv") == 0) {
 				filter->param_mask_source_invert = param;
+			}
+		}
+	}
+}
+
+static void load_circle_mask_effect(composite_blur_filter_data_t *filter)
+{
+	blog(LOG_INFO, "==== LOAD CIRCLE MASK EFFECT ====");
+	if (filter->effect_mask_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->effect_mask_effect);
+		filter->effect_mask_effect = NULL;
+		obs_leave_graphics();
+	}
+
+	char *shader_text = NULL;
+	struct dstr filename = {0};
+	dstr_cat(&filename, obs_get_module_data_path(obs_current_module()));
+	dstr_cat(&filename, "/shaders/effect_mask_circle.effect");
+	shader_text = load_shader_from_file(filename.array);
+	char *errors = NULL;
+
+	obs_enter_graphics();
+	filter->effect_mask_effect =
+		gs_effect_create(shader_text, NULL, &errors);
+	obs_leave_graphics();
+
+	bfree(shader_text);
+	if (filter->effect_mask_effect == NULL) {
+		blog(LOG_WARNING,
+		     "[obs-composite-blur] Unable to load effect_mask_circle.effect file.  Errors:\n%s",
+		     (errors == NULL || strlen(errors) == 0 ? "(None)"
+							    : errors));
+		bfree(errors);
+	} else {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->effect_mask_effect);
+		for (size_t effect_index = 0; effect_index < effect_count;
+		     effect_index++) {
+			gs_eparam_t *param = gs_effect_get_param_by_idx(
+				filter->effect_mask_effect, effect_index);
+			struct gs_effect_param_info info;
+			gs_effect_get_param_info(param, &info);
+			if (strcmp(info.name, "filtered_image") == 0) {
+				filter->param_filtered_image = param;
+			} else if (strcmp(info.name, "inv") == 0) {
+				filter->param_mask_circle_inv = param;
+			} else if (strcmp(info.name, "center") == 0) {
+				filter->param_mask_circle_center = param;
+			} else if (strcmp(info.name, "circle_radius") == 0) {
+				filter->param_mask_circle_radius = param;
+			} else if (strcmp(info.name, "uv_scale") == 0) {
+				filter->param_mask_circle_uv_scale = param;
 			}
 		}
 	}
@@ -1316,7 +1510,7 @@ gs_texture_t *blend_composite(gs_texture_t *texture,
 		obs_source_release(source);
 		gs_texture_t *tex = gs_texrender_get_texture(source_render);
 
-		if(data->param_background) {
+		if (data->param_background) {
 			gs_effect_set_texture(data->param_background, tex);
 		}
 		gs_eparam_t *image =
