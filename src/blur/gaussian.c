@@ -380,8 +380,6 @@ static void load_1d_gaussian_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
 			}
 		}
 	}
@@ -406,8 +404,6 @@ static void load_motion_gaussian_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
 			}
 		}
 	}
@@ -432,8 +428,6 @@ static void load_radial_gaussian_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
 			}
 		}
 	}

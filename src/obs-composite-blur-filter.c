@@ -43,16 +43,36 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->kawase_passes = 1;
 	filter->rendering = false;
 	filter->reload = true;
-	filter->param_uv_size = NULL;
-	filter->param_dir = NULL;
-	filter->param_radius = NULL;
-	filter->param_background = NULL;
 	filter->video_render = NULL;
 	filter->load_effect = NULL;
 	filter->update = NULL;
 	filter->kernel_texture = NULL;
 	filter->pixelate_type = 1;
 	filter->pixelate_type_last = -1;
+
+// Params
+	filter->param_uv_size = NULL;
+	filter->param_radius = NULL;
+	filter->param_texel_step = NULL;
+	filter->param_kernel_size = NULL;
+	filter->param_offset = NULL;
+	filter->param_weight = NULL;
+	filter->param_kernel_texture = NULL;
+	filter->param_radial_center = NULL;
+	filter->param_focus_width = NULL;
+	filter->param_focus_center = NULL;
+	filter->param_focus_angle = NULL;
+	filter->param_background = NULL;
+	filter->param_mask_crop_scale = NULL;
+	filter->param_mask_crop_offset = NULL;
+	filter->param_mask_crop_box_aspect_ratio = NULL;
+	filter->param_mask_crop_corner_radius = NULL;
+	filter->param_mask_crop_invert = NULL;
+	filter->param_mask_source_alpha_source = NULL;
+	filter->param_mask_source_rgba_weights = NULL;
+	filter->param_mask_source_multiplier = NULL;
+	filter->param_mask_source_invert = NULL;
+
 	filter->mask_crop_left = 0.0f;
 	filter->mask_crop_right = 0.0f;
 	filter->mask_crop_top = 0.0f;
@@ -420,31 +440,32 @@ static void apply_effect_mask_source(composite_blur_filter_data_t *filter)
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
-	gs_eparam_t *filtered_image =
-		gs_effect_get_param_by_name(effect, "filtered_image");
-	gs_effect_set_texture(filtered_image, filtered_texture);
+	if(filter->param_filtered_image) {
+		gs_effect_set_texture(filter->param_filtered_image, filtered_texture);
+	}
 
-	gs_eparam_t *alpha_source =
-		gs_effect_get_param_by_name(effect, "alpha_source");
-	gs_effect_set_texture(alpha_source, alpha_texture);
+	if(filter->param_mask_source_alpha_source) {
+		gs_effect_set_texture(filter->param_mask_source_alpha_source, alpha_texture);
+	}
 
-	gs_eparam_t *invert = gs_effect_get_param_by_name(effect, "inv");
-	bool invert_v = filter->mask_source_invert;
-	gs_effect_set_bool(invert, invert_v);
+	if(filter->param_mask_source_invert) {
+		gs_effect_set_bool(filter->param_mask_source_invert, filter->mask_source_invert);
+	}
 
-	gs_eparam_t *rgba_weights =
-		gs_effect_get_param_by_name(effect, "rgba_weights");
+	// TODO- Move weights calculation to update.
+	//       Move vec4 weights into data structure.
 	struct vec4 weights;
 	weights.x = filter->mask_source_filter_red;
 	weights.y = filter->mask_source_filter_green;
 	weights.z = filter->mask_source_filter_blue;
 	weights.w = filter->mask_source_filter_alpha;
-	gs_effect_set_vec4(rgba_weights, &weights);
+	if(filter->param_mask_source_rgba_weights) {
+		gs_effect_set_vec4(filter->param_mask_source_rgba_weights, &weights);
+	}
 
-	gs_eparam_t *multiplier =
-		gs_effect_get_param_by_name(effect, "multiplier");
-	gs_effect_set_float(multiplier, filter->mask_source_multiplier);
-
+	if(filter->param_mask_source_multiplier) {
+		gs_effect_set_float(filter->param_mask_source_multiplier, filter->mask_source_multiplier);
+	}
 	set_blending_parameters();
 
 	filter->output_texrender =
@@ -485,43 +506,44 @@ static void apply_effect_mask_crop(composite_blur_filter_data_t *filter)
 	}
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
+	
+	if(filter->param_filtered_image) {
+		gs_effect_set_texture(filter->param_filtered_image, filtered_texture);
+	}
 
-	gs_eparam_t *filtered_image =
-		gs_effect_get_param_by_name(effect, "filtered_image");
-	gs_effect_set_texture(filtered_image, filtered_texture);
+	struct vec2 scale;
+	scale.x = 1.0f / fmax(1.0f - right - left, 1.e-6f);
+	scale.y = 1.0f / fmax(1.0f - bot - top, 1.e-6f);
+	if(filter->param_mask_crop_scale) {
+		gs_effect_set_vec2(filter->param_mask_crop_scale, &scale);
+	}
 
-	gs_eparam_t *scale = gs_effect_get_param_by_name(effect, "scale");
-	struct vec2 scale_v;
-	scale_v.x = 1.0f / fmax(1.0f - right - left, 1.e-6f);
-	scale_v.y = 1.0f / fmax(1.0f - bot - top, 1.e-6f);
-	gs_effect_set_vec2(scale, &scale_v);
-
-	gs_eparam_t *box_aspect_ratio =
-		gs_effect_get_param_by_name(effect, "box_aspect_ratio");
 	struct vec2 box_ar;
 	box_ar.x = (1.0f - right - left) * filter->width /
 		   fmin(filter->width, filter->height);
 	box_ar.y = (1.0f - bot - top) * filter->height /
 		   fmin(filter->width, filter->height);
-	gs_effect_set_vec2(box_aspect_ratio, &box_ar);
+	if(filter->param_mask_crop_box_aspect_ratio) {
+		gs_effect_set_vec2(filter->param_mask_crop_box_aspect_ratio, &box_ar);
+	}
 
-	gs_eparam_t *offset = gs_effect_get_param_by_name(effect, "offset");
-	struct vec2 offset_v;
-	offset_v.x = 1.0f - right - left > 0.0f ? left : -1000.0f;
-	offset_v.y = 1.0f - bot - top > 0.0f ? top : -1000.0f;
-	gs_effect_set_vec2(offset, &offset_v);
+	struct vec2 offset;
+	offset.x = 1.0f - right - left > 0.0f ? left : -1000.0f;
+	offset.y = 1.0f - bot - top > 0.0f ? top : -1000.0f;
+	if(filter->param_mask_crop_offset) {
+		gs_effect_set_vec2(filter->param_mask_crop_offset, &offset);
+	}
 
-	gs_eparam_t *invert = gs_effect_get_param_by_name(effect, "inv");
 	bool invert_v = filter->mask_crop_invert;
-	gs_effect_set_bool(invert, invert_v);
+	if(filter->param_mask_crop_invert) {
+		gs_effect_set_bool(filter->param_mask_crop_invert, invert_v);
+	}
 
 	float radius = filter->mask_crop_corner_radius / 100.0f *
-		       fmin(box_ar.x, box_ar.y);
-
-	gs_eparam_t *corner_radius =
-		gs_effect_get_param_by_name(effect, "corner_radius");
-	gs_effect_set_float(corner_radius, radius);
-
+		fmin(box_ar.x, box_ar.y);
+	if(filter->param_mask_crop_corner_radius) {
+		gs_effect_set_float(filter->param_mask_crop_corner_radius, radius);
+	}
 	set_blending_parameters();
 
 	filter->output_texrender =
@@ -1118,6 +1140,19 @@ static void load_crop_mask_effect(composite_blur_filter_data_t *filter)
 				filter->effect_mask_effect, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
+			if (strcmp(info.name, "filtered_image") == 0) {
+				filter->param_filtered_image = param;
+			} else if(strcmp(info.name, "scale") == 0) {
+				filter->param_mask_crop_scale = param;
+			} else if(strcmp(info.name, "offset") == 0) {
+				filter->param_mask_crop_offset = param;
+			} else if(strcmp(info.name, "box_aspect_ratio") == 0) {
+				filter->param_mask_crop_box_aspect_ratio = param;
+			} else if(strcmp(info.name, "corner_radius") == 0) {
+				filter->param_mask_crop_corner_radius = param;
+			} else if(strcmp(info.name, "inv") == 0) {
+				filter->param_mask_crop_invert = param;
+			}
 		}
 	}
 }
@@ -1159,6 +1194,17 @@ static void load_source_mask_effect(composite_blur_filter_data_t *filter)
 				filter->effect_mask_effect, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
+			if (strcmp(info.name, "filtered_image") == 0) {
+				filter->param_filtered_image = param;
+			} else if(strcmp(info.name, "alpha_source") == 0) {
+				filter->param_mask_source_alpha_source = param;
+			} else if(strcmp(info.name, "rgba_weights") == 0) {
+				filter->param_mask_source_rgba_weights = param;
+			} else if(strcmp(info.name, "multiplier") == 0) {
+				filter->param_mask_source_multiplier= param;
+			} else if(strcmp(info.name, "inv") == 0) {
+				filter->param_mask_source_invert = param;
+			}
 		}
 	}
 }

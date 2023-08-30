@@ -381,8 +381,6 @@ static void load_1d_box_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
 			}
 		}
 	}
@@ -402,8 +400,6 @@ static void load_tiltshift_box_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
 			}
 		}
 	}
@@ -423,8 +419,6 @@ static void load_radial_box_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
 			}
 		}
 	}

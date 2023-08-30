@@ -94,8 +94,6 @@ static void load_pixelate_square_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
 			}
 		}
 	}
@@ -115,8 +113,6 @@ static void load_pixelate_hexagonal_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
 			}
 		}
 	}
@@ -136,8 +132,6 @@ static void load_pixelate_circle_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
 			}
 		}
 	}
@@ -157,8 +151,6 @@ static void load_pixelate_triangle_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
 			}
 		}
 	}

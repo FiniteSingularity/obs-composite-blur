@@ -91,9 +91,10 @@ struct composite_blur_filter_data {
 	gs_texrender_t *input_texrender;
 	bool output_rendered;
 	gs_texrender_t *output_texrender;
-
+	// Frame Buffers
 	gs_texrender_t *render;
 	gs_texrender_t *render2;
+	// Renderer for composite render step
 	gs_texrender_t *composite_render;
 
 	gs_eparam_t *param_uv_size;
@@ -116,42 +117,93 @@ struct composite_blur_filter_data {
 	float tilt_shift_center;
 	float tilt_shift_width;
 	float tilt_shift_angle;
+	// Blur Filter Common
 	int blur_algorithm;
 	int blur_algorithm_last;
 	int blur_type;
 	int blur_type_last;
+
+	gs_eparam_t *param_uv_size;
+	struct vec2 uv_size;
+	gs_eparam_t *param_radius;
+	float radius;
+	float radius_last;
+	gs_eparam_t *param_texel_step;
+	struct vec2 texel_step;
+
+	// Gaussuan Blur
+	gs_eparam_t *param_kernel_size;
+	size_t kernel_size;
+	gs_eparam_t *param_offset;
+	fDarray offset;
+	gs_eparam_t *param_weight;
+	fDarray kernel;
+	gs_eparam_t *param_kernel_texture;
+	gs_texture_t *kernel_texture;
+
+	// Box Blur
 	int passes;
+
+	// Kawase Blur
 	int kawase_passes;
+
+	// Pixelate Blur
 	int pixelate_type;
 	int pixelate_type_last;
+
+	// Radial Blur
+	gs_eparam_t *param_radial_center;
+	float center_x;
+	float center_y;
+
+	// Motion/Directional Blur
+	float angle;
+
+	// Tilt-Shift
+	gs_eparam_t *param_focus_width;
+	float tilt_shift_width;
+	gs_eparam_t *param_focus_center;
+	float tilt_shift_center;
+	gs_eparam_t *param_focus_angle;
+	float tilt_shift_angle;
+
+	// Compositing
+	gs_eparam_t *param_background;
+	obs_weak_source_t *background;
 
 	// Mask
 	int mask_type;
 	int mask_type_last;
+	gs_eparam_t *param_filtered_image;
 	float mask_crop_left;
 	float mask_crop_right;
 	float mask_crop_top;
 	float mask_crop_bot;
+	gs_eparam_t *param_mask_crop_scale;
+	gs_eparam_t *param_mask_crop_offset;
+	gs_eparam_t *param_mask_crop_box_aspect_ratio;
+	gs_eparam_t *param_mask_crop_corner_radius;
 	float mask_crop_corner_radius;
+	gs_eparam_t *param_mask_crop_invert;
 	bool mask_crop_invert;
 	int mask_source_filter_type;
 	float mask_source_filter_red;
 	float mask_source_filter_green;
 	float mask_source_filter_blue;
 	float mask_source_filter_alpha;
+	gs_eparam_t *param_mask_source_alpha_source;
+	gs_eparam_t *param_mask_source_rgba_weights;
+	gs_eparam_t *param_mask_source_multiplier;
 	float mask_source_multiplier;
+	gs_eparam_t *param_mask_source_invert;
 	bool mask_source_invert;
 	obs_weak_source_t *mask_source_source;
 
-	obs_weak_source_t *background;
+	bool rendering;
+	bool reload;
+
 	uint32_t width;
 	uint32_t height;
-
-	// Gaussian Kernel
-	fDarray kernel;
-	fDarray offset;
-	gs_texture_t *kernel_texture;
-	size_t kernel_size;
 
 	// Callback Functions
 	void (*video_render)(composite_blur_filter_data_t *filter);
