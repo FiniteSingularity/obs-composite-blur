@@ -76,6 +76,7 @@ struct composite_blur_filter_data {
 
 	bool rendering;
 	bool reload;
+	bool rendered;
 
 	struct vec2 uv_size;
 
