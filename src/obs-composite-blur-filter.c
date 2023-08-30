@@ -17,12 +17,23 @@ struct obs_source_info obs_composite_blur = {
 	.video_tick = composite_blur_video_tick,
 	.get_width = composite_blur_width,
 	.get_height = composite_blur_height,
-	.get_properties = composite_blur_properties};
+	.get_properties = composite_blur_properties,
+	.get_defaults = composite_blur_defaults
+	};
 
 static const char *composite_blur_name(void *unused)
 {
 	UNUSED_PARAMETER(unused);
 	return obs_module_text("CompositeBlurFilter");
+}
+
+static void composite_blur_defaults(obs_data_t *settings) {
+	obs_data_set_default_double(settings, "radius", 0.0);
+	obs_data_set_default_string(settings, "background", "None");
+	obs_data_set_default_int(settings, "passes", 1);
+	obs_data_set_default_int(settings, "kawase_passes", 1);
+	obs_data_set_default_string(settings, "effect_mask_source_source", "None");
+	obs_data_set_default_double(settings, "effect_mask_source_filter_multiplier", 1.0);
 }
 
 static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
@@ -92,9 +103,8 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->mask_source_invert = false;
 
 	da_init(filter->kernel);
-
+	//composite_blur_defaults(settings);
 	obs_source_update(source, settings);
-
 	return filter;
 }
 
@@ -1304,9 +1314,9 @@ gs_texture_t *blend_composite(gs_texture_t *texture,
 		obs_source_release(source);
 		gs_texture_t *tex = gs_texrender_get_texture(source_render);
 
-		gs_eparam_t *background = gs_effect_get_param_by_name(
-			composite_effect, "background");
-		gs_effect_set_texture(background, tex);
+		if(data->param_background) {
+			gs_effect_set_texture(data->param_background, tex);
+		}
 		gs_eparam_t *image =
 			gs_effect_get_param_by_name(composite_effect, "image");
 		gs_effect_set_texture(image, texture);

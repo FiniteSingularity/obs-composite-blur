@@ -213,6 +213,7 @@ struct composite_blur_filter_data {
 
 static const char *composite_blur_name(void *type_data);
 static void *composite_blur_create(obs_data_t *settings, obs_source_t *source);
+static void composite_blur_defaults(obs_data_t *settings);
 static void composite_blur_destroy(void *data);
 static uint32_t composite_blur_width(void *data);
 static uint32_t composite_blur_height(void *data);
