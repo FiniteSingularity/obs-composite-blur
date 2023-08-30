@@ -6,10 +6,10 @@
 
 uniform float4x4 ViewProj;
 uniform texture2d image;
-uniform texture2d kernel_texture;
 
 uniform float2 uv_size;
 uniform int kernel_size;
+uniform texture2d kernel_texture;
 uniform float2 radial_center;
 
 sampler_state textureSampler{
