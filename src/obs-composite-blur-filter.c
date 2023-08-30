@@ -74,6 +74,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->param_focus_center = NULL;
 	filter->param_focus_angle = NULL;
 	filter->param_background = NULL;
+	filter->param_pixel_size = NULL;
 	filter->param_mask_crop_scale = NULL;
 	filter->param_mask_crop_offset = NULL;
 	filter->param_mask_crop_box_aspect_ratio = NULL;
@@ -1256,9 +1257,6 @@ static void load_mix_effect(composite_blur_filter_data_t *filter)
 				filter->mix_effect, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
-			if (strcmp(info.name, "background") == 0) {
-				filter->param_background = param;
-			}
 		}
 	}
 }

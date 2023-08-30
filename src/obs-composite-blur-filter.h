@@ -148,6 +148,7 @@ struct composite_blur_filter_data {
 	int kawase_passes;
 
 	// Pixelate Blur
+	gs_eparam_t *param_pixel_size;
 	int pixelate_type;
 	int pixelate_type_last;
 
