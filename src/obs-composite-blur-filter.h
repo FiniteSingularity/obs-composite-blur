@@ -102,26 +102,10 @@ struct composite_blur_filter_data {
 	// Renderer for composite render step
 	gs_texrender_t *composite_render;
 
-	gs_eparam_t *param_uv_size;
-	gs_eparam_t *param_dir;
-	gs_eparam_t *param_radius;
-	gs_eparam_t *param_background;
-
 	bool rendering;
 	bool reload;
 	bool rendered;
 
-	struct vec2 uv_size;
-
-	float center_x;
-	float center_y;
-
-	float radius;
-	float radius_last;
-	float angle;
-	float tilt_shift_center;
-	float tilt_shift_width;
-	float tilt_shift_angle;
 	// Blur Filter Common
 	int blur_algorithm;
 	int blur_algorithm_last;
@@ -212,9 +196,6 @@ struct composite_blur_filter_data {
 	gs_eparam_t *param_mask_circle_inv;
 	bool mask_circle_inv;
 	gs_eparam_t *param_mask_circle_uv_scale;
-
-	bool rendering;
-	bool reload;
 
 	uint32_t width;
 	uint32_t height;
