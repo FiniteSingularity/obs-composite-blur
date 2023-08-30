@@ -353,7 +353,8 @@ static void composite_blur_video_render(void *data, gs_effect_t *effect)
 	filter->rendering = true;
 
 	if (filter->video_render) {
-		// 1. Get the input source as a texture renderer:
+		// 1. Get the input source as a texture renderer
+		//    accessed as filter->input_texrender after call
 		get_input_source(filter);
 
 		// 2. Apply effect to texture, and render texture to video
