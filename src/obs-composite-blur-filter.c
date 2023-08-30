@@ -219,6 +219,11 @@ static void composite_blur_video_render(void *data, gs_effect_t *effect)
 	UNUSED_PARAMETER(effect);
 	struct composite_blur_filter_data *filter = data;
 
+	if (filter->rendered) {
+		draw_output_to_source(filter);
+		return;
+	}
+
 	if (filter->rendering) {
 		obs_source_skip_video_filter(filter->context);
 		return;
@@ -235,6 +240,7 @@ static void composite_blur_video_render(void *data, gs_effect_t *effect)
 
 		// 3. Draw result (filter->output_texrender) to source
 		draw_output_to_source(filter);
+		filter->rendered = true;
 	}
 
 	filter->rendering = false;
@@ -517,6 +523,7 @@ static void composite_blur_video_tick(void *data, float seconds)
 	filter->height = (uint32_t)obs_source_get_base_height(target);
 	filter->uv_size.x = (float)filter->width;
 	filter->uv_size.y = (float)filter->height;
+	filter->rendered = false;
 }
 
 static void composite_blur_reload_effect(composite_blur_filter_data_t *filter)
