@@ -106,6 +106,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->param_mask_source_invert = NULL;
 	filter->param_mask_circle_center = NULL;
 	filter->param_mask_circle_radius = NULL;
+	filter->param_mask_circle_feathering = NULL;
 	filter->param_mask_circle_inv = NULL;
 	filter->param_mask_circle_uv_scale = NULL;
 
@@ -313,6 +314,8 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		settings, "effect_mask_circle_center_y");
 	filter->mask_circle_radius = (float)obs_data_get_double(
 		settings, "effect_mask_circle_radius");
+	filter->mask_circle_feathering = (float)obs_data_get_double(
+		settings, "effect_mask_circle_feathering");
 	filter->mask_circle_inv =
 		obs_data_get_bool(settings, "effect_mask_circle_invert");
 
@@ -806,6 +809,11 @@ static void apply_effect_mask_circle(composite_blur_filter_data_t *filter)
 	if (filter->param_mask_circle_radius) {
 		gs_effect_set_float(filter->param_mask_circle_radius, radius);
 	}
+	float feathering = filter->mask_circle_feathering / 100.0f;
+	if (filter->param_mask_circle_feathering) {
+		gs_effect_set_float(filter->param_mask_circle_feathering,
+				    feathering);
+	}
 	set_blending_parameters();
 
 	filter->output_texrender =
@@ -993,6 +1001,12 @@ static obs_properties_t *composite_blur_properties(void *data)
 		effect_mask_circle, "effect_mask_circle_radius",
 		obs_module_text("CompositeBlurFilter.EffectMask.Circle.Radius"),
 		0.0, 500.01, 0.01);
+
+	obs_properties_add_float_slider(
+		effect_mask_circle, "effect_mask_circle_feathering",
+		obs_module_text(
+			"CompositeBlurFilter.EffectMask.Circle.Feathering"),
+		0.0, 100.01, 0.01);
 
 	obs_properties_add_bool(
 		effect_mask_circle, "effect_mask_circle_invert",
@@ -1657,6 +1671,8 @@ static void load_circle_mask_effect(composite_blur_filter_data_t *filter)
 				filter->param_mask_circle_center = param;
 			} else if (strcmp(info.name, "circle_radius") == 0) {
 				filter->param_mask_circle_radius = param;
+			} else if (strcmp(info.name, "feathering") == 0) {
+				filter->param_mask_circle_feathering = param;
 			} else if (strcmp(info.name, "uv_scale") == 0) {
 				filter->param_mask_circle_uv_scale = param;
 			}

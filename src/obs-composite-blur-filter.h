@@ -194,6 +194,8 @@ struct composite_blur_filter_data {
 	float mask_circle_center_y;
 	gs_eparam_t *param_mask_circle_radius;
 	float mask_circle_radius;
+	gs_eparam_t *param_mask_circle_feathering;
+	float mask_circle_feathering;
 	gs_eparam_t *param_mask_circle_inv;
 	bool mask_circle_inv;
 	gs_eparam_t *param_mask_circle_uv_scale;
