@@ -133,6 +133,7 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 {
 	gs_texture_t *texture = gs_texrender_get_texture(data->input_texrender);
 	if (data->kawase_passes <= 1) {
+		// TODO- COPY INPUT TO OUTPUT TO PRESERVE INPUT.
 		gs_texrender_t *tmp = data->input_texrender;
 		data->input_texrender = data->output_texrender;
 		data->output_texrender = tmp;
@@ -207,8 +208,6 @@ load_dual_kawase_down_sample_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
 			}
 		}
 	}
@@ -229,8 +228,6 @@ load_dual_kawase_up_sample_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
 			}
 		}
 	}

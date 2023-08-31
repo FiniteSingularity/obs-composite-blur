@@ -12,9 +12,6 @@ void set_gaussian_blur_types(obs_properties_t *props)
 				  TYPE_ZOOM);
 	obs_property_list_add_int(p, obs_module_text(TYPE_MOTION_LABEL),
 				  TYPE_MOTION);
-	// obs_property_list_add_int(p,
-	// 			  obs_module_text(TYPE_TILTSHIFT_LABEL),
-	// 			  TYPE_TILTSHIFT);
 }
 
 void gaussian_setup_callbacks(composite_blur_filter_data_t *data)
@@ -69,7 +66,7 @@ void load_effect_gaussian(composite_blur_filter_data_t *filter)
 }
 
 /*
- *  Performs an area blur using the gaussian kernel.  Blur is
+ *  Performs an area blur using the gaussian kernel. Blur is
  *  equal in both x and y directions.
  */
 static void gaussian_area_blur(composite_blur_filter_data_t *data)
@@ -85,37 +82,37 @@ static void gaussian_area_blur(composite_blur_filter_data_t *data)
 
 	data->render2 = create_or_reset_texrender(data->render2);
 
+	// 1. First pass- apply 1D blur kernel to horizontal dir.
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
 #ifdef _WIN32
-	gs_eparam_t *weight = gs_effect_get_param_by_name(effect, "weight");
-
-	gs_effect_set_val(weight, data->kernel.array,
-			  data->kernel.num * sizeof(float));
-
-	gs_eparam_t *offset = gs_effect_get_param_by_name(effect, "offset");
-	gs_effect_set_val(offset, data->offset.array,
-			  data->offset.num * sizeof(float));
+	if(data->param_weight) {
+		gs_effect_set_val(data->param_weight, data->kernel.array,
+			  	data->kernel.num * sizeof(float));
+	}
+	if(data->param_offset) {
+		gs_effect_set_val(data->param_offset, data->offset.array,
+				data->offset.num * sizeof(float));
+	}
 #else
-	gs_eparam_t *kernel_texture =
-		gs_effect_get_param_by_name(effect, "kernel_texture");
-	gs_effect_set_texture(kernel_texture, data->kernel_texture);
+	if(data->param_kernel_texture) {
+		gs_effect_set_texture(data->param_kernel_texture, data->kernel_texture);
+	}
 #endif
 
 	const int k_size = (int)data->kernel_size;
-	gs_eparam_t *kernel_size =
-		gs_effect_get_param_by_name(effect, "kernel_size");
-	gs_effect_set_int(kernel_size, k_size);
+	if(data->param_kernel_size) {
+		gs_effect_set_int(data->param_kernel_size, k_size);
+	}
 
-	gs_eparam_t *texel_step =
-		gs_effect_get_param_by_name(effect, "texel_step");
-	struct vec2 direction;
-
-	// 1. First pass- apply 1D blur kernel to horizontal dir.
-	direction.x = 1.0f / data->width;
-	direction.y = 0.0f;
-	gs_effect_set_vec2(texel_step, &direction);
+	
+	struct vec2 texel_step;
+	texel_step.x = 1.0f / data->width;
+	texel_step.y = 0.0f;
+	if(data->param_texel_step) {
+		gs_effect_set_vec2(data->param_texel_step, &texel_step);
+	}
 
 	set_blending_parameters();
 
@@ -135,13 +132,16 @@ static void gaussian_area_blur(composite_blur_filter_data_t *data)
 	gs_effect_set_texture(image, texture);
 
 #ifndef _WIN32
-	kernel_texture = gs_effect_get_param_by_name(effect, "kernel_texture");
-	gs_effect_set_texture(kernel_texture, data->kernel_texture);
+	if(data->param_kernel_texture) {
+		gs_effect_set_texture(data->param_kernel_texture, data->kernel_texture);
+	}
 #endif
 
-	direction.x = 0.0f;
-	direction.y = 1.0f / data->height;
-	gs_effect_set_vec2(texel_step, &direction);
+	texel_step.x = 0.0f;
+	texel_step.y = 1.0f / data->height;
+	if(data->param_texel_step) {
+		gs_effect_set_vec2(data->param_texel_step, &texel_step);
+	}
 
 	data->output_texrender =
 		create_or_reset_texrender(data->output_texrender);
@@ -172,41 +172,39 @@ static void gaussian_directional_blur(composite_blur_filter_data_t *data)
 
 	texture = blend_composite(texture, data);
 
+	// 1. Single pass- blur only in one direction
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
 #ifdef _WIN32
-	gs_eparam_t *weight = gs_effect_get_param_by_name(effect, "weight");
-
-	gs_effect_set_val(weight, data->kernel.array,
-			  data->kernel.num * sizeof(float));
-
-	gs_eparam_t *offset = gs_effect_get_param_by_name(effect, "offset");
-	gs_effect_set_val(offset, data->offset.array,
-			  data->offset.num * sizeof(float));
+	if(data->param_weight) {
+		gs_effect_set_val(data->param_weight, data->kernel.array,
+			  	data->kernel.num * sizeof(float));
+	}
+	if(data->param_offset) {
+		gs_effect_set_val(data->param_offset, data->offset.array,
+				data->offset.num * sizeof(float));
+	}
 #else
-	gs_eparam_t *kernel_texture =
-		gs_effect_get_param_by_name(effect, "kernel_texture");
-	gs_effect_set_texture(kernel_texture, data->kernel_texture);
+	if(data->param_kernel_texture) {
+		gs_effect_set_texture(data->param_kernel_texture, data->kernel_texture);
+	}
 #endif
 
 	const int k_size = (int)data->kernel_size;
-	gs_eparam_t *kernel_size =
-		gs_effect_get_param_by_name(effect, "kernel_size");
-	gs_effect_set_int(kernel_size, k_size);
+	if(data->param_kernel_size) {
+		gs_effect_set_int(data->param_kernel_size, k_size);
+	}
 
-	gs_eparam_t *texel_step =
-		gs_effect_get_param_by_name(effect, "texel_step");
-	struct vec2 direction;
-
-	// 1. Single pass- blur only in one direction
+	struct vec2 texel_step;
 	float rads = -data->angle * (M_PI / 180.0f);
-	direction.x = (float)cos(rads) / data->width;
-	direction.y = (float)sin(rads) / data->height;
-	gs_effect_set_vec2(texel_step, &direction);
+	texel_step.x = (float)cos(rads) / data->width;
+	texel_step.y = (float)sin(rads) / data->height;
+	if(data->param_texel_step) {
+		gs_effect_set_vec2(data->param_texel_step, &texel_step);
+	}
 
 	set_blending_parameters();
-	//set_render_parameters();
 
 	data->output_texrender =
 		create_or_reset_texrender(data->output_texrender);
@@ -237,41 +235,39 @@ static void gaussian_motion_blur(composite_blur_filter_data_t *data)
 
 	texture = blend_composite(texture, data);
 
+	// 1. Single pass- blur only in one direction
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
 #ifdef _WIN32
-	gs_eparam_t *weight = gs_effect_get_param_by_name(effect, "weight");
-
-	gs_effect_set_val(weight, data->kernel.array,
-			  data->kernel.num * sizeof(float));
-
-	gs_eparam_t *offset = gs_effect_get_param_by_name(effect, "offset");
-	gs_effect_set_val(offset, data->offset.array,
-			  data->offset.num * sizeof(float));
+	if(data->param_weight) {
+		gs_effect_set_val(data->param_weight, data->kernel.array,
+			  	data->kernel.num * sizeof(float));
+	}
+	if(data->param_offset) {
+		gs_effect_set_val(data->param_offset, data->offset.array,
+				data->offset.num * sizeof(float));
+	}
 #else
-	gs_eparam_t *kernel_texture =
-		gs_effect_get_param_by_name(effect, "kernel_texture");
-	gs_effect_set_texture(kernel_texture, data->kernel_texture);
+	if(data->param_kernel_texture) {
+		gs_effect_set_texture(data->param_kernel_texture, data->kernel_texture);
+	}
 #endif
 
 	const int k_size = (int)data->kernel_size;
-	gs_eparam_t *kernel_size =
-		gs_effect_get_param_by_name(effect, "kernel_size");
-	gs_effect_set_int(kernel_size, k_size);
+	if(data->param_kernel_size) {
+		gs_effect_set_int(data->param_kernel_size, k_size);
+	}
 
-	gs_eparam_t *texel_step =
-		gs_effect_get_param_by_name(effect, "texel_step");
-	struct vec2 direction;
-
-	// 1. Single pass- blur only in one direction
+	struct vec2 texel_step;
 	float rads = -data->angle * (M_PI / 180.0f);
-	direction.x = (float)cos(rads) / data->width;
-	direction.y = (float)sin(rads) / data->height;
-	gs_effect_set_vec2(texel_step, &direction);
+	texel_step.x = (float)cos(rads) / data->width;
+	texel_step.y = (float)sin(rads) / data->height;
+	if(data->param_texel_step) {
+		gs_effect_set_vec2(data->param_texel_step, &texel_step);
+	}
 
 	set_blending_parameters();
-	//set_render_parameters();
 
 	data->output_texrender =
 		create_or_reset_texrender(data->output_texrender);
@@ -303,47 +299,43 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 
 	texture = blend_composite(texture, data);
 
+	// 1. Single pass- blur only in one direction
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
 #ifdef _WIN32
-	gs_eparam_t *weight = gs_effect_get_param_by_name(effect, "weight");
-
-	gs_effect_set_val(weight, data->kernel.array,
-			  data->kernel.num * sizeof(float));
-
-	gs_eparam_t *offset = gs_effect_get_param_by_name(effect, "offset");
-	gs_effect_set_val(offset, data->offset.array,
-			  data->offset.num * sizeof(float));
+	if(data->param_weight) {
+		gs_effect_set_val(data->param_weight, data->kernel.array,
+			  	data->kernel.num * sizeof(float));
+	}
+	if(data->param_offset) {
+		gs_effect_set_val(data->param_offset, data->offset.array,
+				data->offset.num * sizeof(float));
+	}
 #else
-	gs_eparam_t *kernel_texture =
-		gs_effect_get_param_by_name(effect, "kernel_texture");
-	gs_effect_set_texture(kernel_texture, data->kernel_texture);
+	if(data->param_kernel_texture) {
+		gs_effect_set_texture(data->param_kernel_texture, data->kernel_texture);
+	}
 #endif
 
 	const int k_size = (int)data->kernel_size;
-	gs_eparam_t *kernel_size =
-		gs_effect_get_param_by_name(effect, "kernel_size");
-	gs_effect_set_int(kernel_size, k_size);
+	if(data->param_kernel_size) {
+		gs_effect_set_int(data->param_kernel_size, k_size);
+	}
 
-	gs_eparam_t *radial_center =
-		gs_effect_get_param_by_name(effect, "radial_center");
+	struct vec2 radial_center;
+	radial_center.x = data->center_x;
+	radial_center.y = data->center_y;
+	if(data->param_radial_center) {
+		gs_effect_set_vec2(data->param_radial_center, &radial_center);
+	}
 
-	struct vec2 coord;
-
-	coord.x = data->center_x;
-	coord.y = data->center_y;
-
-	// 1. Single pass- blur only in one direction
-	gs_effect_set_vec2(radial_center, &coord);
-
-	gs_eparam_t *uv_size = gs_effect_get_param_by_name(effect, "uv_size");
-
-	struct vec2 size;
-	size.x = (float)data->width;
-	size.y = (float)data->height;
-
-	gs_effect_set_vec2(uv_size, &size);
+	struct vec2 uv_size;
+	uv_size.x = (float)data->width;
+	uv_size.y = (float)data->height;
+	if(data->param_uv_size) {
+		gs_effect_set_vec2(data->param_uv_size, &uv_size);
+	}
 
 	set_blending_parameters();
 
@@ -380,8 +372,16 @@ static void load_1d_gaussian_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
+			} else if (strcmp(info.name, "texel_step") == 0) {
+				filter->param_texel_step = param;
+			} else if (strcmp(info.name, "offset") == 0) {
+				filter->param_offset = param;
+			} else if (strcmp(info.name, "weight") == 0) {
+				filter->param_weight = param;
+			} else if (strcmp(info.name, "kernel_size") == 0) {
+				filter->param_kernel_size = param;
+			} else if (strcmp(info.name, "kernel_texture") == 0) {
+				filter->param_kernel_texture = param;
 			}
 		}
 	}
@@ -406,8 +406,16 @@ static void load_motion_gaussian_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
+			} else if (strcmp(info.name, "texel_step") == 0) {
+				filter->param_texel_step = param;
+			} else if (strcmp(info.name, "offset") == 0) {
+				filter->param_offset = param;
+			} else if (strcmp(info.name, "weight") == 0) {
+				filter->param_weight = param;
+			} else if (strcmp(info.name, "kernel_size") == 0) {
+				filter->param_kernel_size = param;
+			} else if (strcmp(info.name, "kernel_texture") == 0) {
+				filter->param_kernel_texture = param;
 			}
 		}
 	}
@@ -432,8 +440,16 @@ static void load_radial_gaussian_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
+			} else if (strcmp(info.name, "offset") == 0) {
+				filter->param_offset = param;
+			} else if (strcmp(info.name, "weight") == 0) {
+				filter->param_weight = param;
+			} else if (strcmp(info.name, "kernel_size") == 0) {
+				filter->param_kernel_size = param;
+			} else if (strcmp(info.name, "kernel_texture") == 0) {
+				filter->param_kernel_texture = param;
+			} else if (strcmp(info.name, "radial_center") == 0) {
+				filter->param_radial_center = param;
 			}
 		}
 	}

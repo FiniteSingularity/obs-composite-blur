@@ -6,8 +6,8 @@
 
 uniform float4x4 ViewProj;
 uniform texture2d image;
-uniform float2 uv_size;
 
+uniform float2 uv_size;
 uniform float pixel_size;
 
 sampler_state textureSampler{

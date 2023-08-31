@@ -36,3 +36,21 @@ Zoom blur is applied away from a center zoom point, and increases the further fr
 
 ### Tilt-Shift
 Tilt-Shift blur defines an in-focus plane, specified by a location in the frame, and a thickness.  All pixels outside of the in-focus plane have their blur value increased the further away from the plane they are. The resulting image gives a distorted sense of scale, making large objects look like mineature models. When applied to video scenes like a city street, the effect can be significant.  Inputs are blur radius, focus plane angle, focus plane location, and focus plane thickness.
+
+## Effect Masking
+OBS Composite Blur offers a variety of ways to mask where and how blur is applied to your source. For all mask options, the mask can also be inverted by checking the "Invert Mask" box.  The following options are available.
+
+### Crop
+Specify the percentage distance in from the top, bottom, left, and right edges of your source that you want masked. Additionally, the crop mask allows you to specify a corner radius for nice, smooth rounded corners.
+
+### Source
+Use another OBS source or scene as a mask for your blur.  Simply select the source or scene you want to use, and then specify if you want to use the source's alpha channel, grayscale value, luminosity, or a custom combination of the red, green, blue, and alpha channels to mask the blur effect. You can also multiply the resulting mask by a value.  The multiply value comes in handy if you have a translucent source, but want everything behind the translucent source to be fully blurred.
+
+### Image
+All of the same options as [Source](#source), but allows you to select an image file rather than a source.
+
+### Rectangle
+Is the same as the [Crop](#crop) option, but instead of specifying the edges, you specify the center of the rectangle, the rectangle width, and rectangle height. This is easier to use with plugins like Move Transition if you want to animate the movement or size of the rectangular masked blur.
+
+### Circle
+Similar to the [Rectangle](#rectangle) option, but lets you specify the center of a circle and its radius. Some nice sweep effects can be made by using a very large circle, and moving it from off the source (less than 0 or greater than 100 for the center coordinates) over the source.

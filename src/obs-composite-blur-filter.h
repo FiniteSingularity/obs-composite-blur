@@ -5,10 +5,16 @@
 #include <util/dstr.h>
 #include <util/darray.h>
 #include <util/platform.h>
+#include <graphics/image-file.h>
 
 #include <stdio.h>
 
+#include "version.h"
 #include "obs-utils.h"
+
+#define PLUGIN_INFO                                                                                                 \
+	"<a href=\"https://github.com/finitesingularity/obs-composite-blur/\">Composite Blur</a> (" PROJECT_VERSION \
+	") by <a href=\"https://twitch.tv/finitesingularity\">FiniteSingularity</a>"
 
 #define ALGO_NONE 0
 #define ALGO_NONE_LABEL "None"
@@ -45,6 +51,32 @@
 #define PIXELATE_TYPE_TRIANGLE 4
 #define PIXELATE_TYPE_TRIANGLE_LABEL "CompositeBlurFilter.Pixelate.Triangle"
 
+#define EFFECT_MASK_TYPE_NONE 0
+#define EFFECT_MASK_TYPE_NONE_LABEL "CompositeBlurFilter.EffectMask.None"
+#define EFFECT_MASK_TYPE_CROP 1
+#define EFFECT_MASK_TYPE_CROP_LABEL "CompositeBlurFilter.EffectMask.Crop"
+#define EFFECT_MASK_TYPE_RECT 2
+#define EFFECT_MASK_TYPE_RECT_LABEL "CompositeBlurFilter.EffectMask.Rectangle"
+#define EFFECT_MASK_TYPE_CIRCLE 3
+#define EFFECT_MASK_TYPE_CIRCLE_LABEL "CompositeBlurFilter.EffectMask.Circle"
+#define EFFECT_MASK_TYPE_SOURCE 4
+#define EFFECT_MASK_TYPE_SOURCE_LABEL "CompositeBlurFilter.EffectMask.Source"
+#define EFFECT_MASK_TYPE_IMAGE 5
+#define EFFECT_MASK_TYPE_IMAGE_LABEL "CompositeBlurFilter.EffectMask.Image"
+
+#define EFFECT_MASK_SOURCE_FILTER_ALPHA 0
+#define EFFECT_MASK_SOURCE_FILTER_ALPHA_LABEL \
+	"CompositeBlurFilter.EffectMask.Source.Alpha"
+#define EFFECT_MASK_SOURCE_FILTER_GRAYSCALE 1
+#define EFFECT_MASK_SOURCE_FILTER_GRAYSCALE_LABEL \
+	"CompositeBlurFilter.EffectMask.Source.Grayscale"
+#define EFFECT_MASK_SOURCE_FILTER_LUMINOSITY 2
+#define EFFECT_MASK_SOURCE_FILTER_LUMINOSITY_LABEL \
+	"CompositeBlurFilter.EffectMask.Source.Luminosity"
+#define EFFECT_MASK_SOURCE_FILTER_SLIDERS 3
+#define EFFECT_MASK_SOURCE_FILTER_SLIDERS_LABEL \
+	"CompositeBlurFilter.EffectMask.Source.Sliders"
+
 typedef DARRAY(float) fDarray;
 
 struct composite_blur_filter_data;
@@ -58,54 +90,123 @@ struct composite_blur_filter_data {
 	gs_effect_t *effect_2;
 	gs_effect_t *composite_effect;
 	gs_effect_t *mix_effect;
+	gs_effect_t *effect_mask_effect;
 
 	// Render pipeline
 	bool input_rendered;
 	gs_texrender_t *input_texrender;
 	bool output_rendered;
 	gs_texrender_t *output_texrender;
-
+	// Frame Buffers
 	gs_texrender_t *render;
 	gs_texrender_t *render2;
+	// Renderer for composite render step
 	gs_texrender_t *composite_render;
-
-	gs_eparam_t *param_uv_size;
-	gs_eparam_t *param_dir;
-	gs_eparam_t *param_radius;
-	gs_eparam_t *param_background;
 
 	bool rendering;
 	bool reload;
 	bool rendered;
 
-	struct vec2 uv_size;
-
-	float center_x;
-	float center_y;
-
-	float radius;
-	float radius_last;
-	float angle;
-	float tilt_shift_center;
-	float tilt_shift_width;
-	float tilt_shift_angle;
+	// Blur Filter Common
 	int blur_algorithm;
 	int blur_algorithm_last;
 	int blur_type;
 	int blur_type_last;
+
+	gs_eparam_t *param_uv_size;
+	struct vec2 uv_size;
+	gs_eparam_t *param_radius;
+	float radius;
+	float radius_last;
+	gs_eparam_t *param_texel_step;
+	struct vec2 texel_step;
+
+	// Gaussuan Blur
+	gs_eparam_t *param_kernel_size;
+	size_t kernel_size;
+	gs_eparam_t *param_offset;
+	fDarray offset;
+	gs_eparam_t *param_weight;
+	fDarray kernel;
+	gs_eparam_t *param_kernel_texture;
+	gs_texture_t *kernel_texture;
+
+	// Box Blur
 	int passes;
+
+	// Kawase Blur
 	int kawase_passes;
+
+	// Pixelate Blur
+	gs_eparam_t *param_pixel_size;
 	int pixelate_type;
 	int pixelate_type_last;
+
+	// Radial Blur
+	gs_eparam_t *param_radial_center;
+	float center_x;
+	float center_y;
+
+	// Motion/Directional Blur
+	float angle;
+
+	// Tilt-Shift
+	gs_eparam_t *param_focus_width;
+	float tilt_shift_width;
+	gs_eparam_t *param_focus_center;
+	float tilt_shift_center;
+	gs_eparam_t *param_focus_angle;
+	float tilt_shift_angle;
+
+	// Compositing
+	gs_eparam_t *param_background;
 	obs_weak_source_t *background;
+
+	// Mask
+	int mask_type;
+	int mask_type_last;
+	gs_eparam_t *param_filtered_image;
+	float mask_crop_left;
+	float mask_crop_right;
+	float mask_crop_top;
+	float mask_crop_bot;
+	gs_eparam_t *param_mask_crop_scale;
+	gs_eparam_t *param_mask_crop_offset;
+	gs_eparam_t *param_mask_crop_box_aspect_ratio;
+	gs_eparam_t *param_mask_crop_corner_radius;
+	float mask_crop_corner_radius;
+	gs_eparam_t *param_mask_crop_invert;
+	bool mask_crop_invert;
+	int mask_source_filter_type;
+	float mask_source_filter_red;
+	float mask_source_filter_green;
+	float mask_source_filter_blue;
+	float mask_source_filter_alpha;
+	gs_eparam_t *param_mask_source_alpha_source;
+	gs_eparam_t *param_mask_source_rgba_weights;
+	gs_eparam_t *param_mask_source_multiplier;
+	float mask_source_multiplier;
+	gs_eparam_t *param_mask_source_invert;
+	bool mask_source_invert;
+	obs_weak_source_t *mask_source_source;
+	gs_eparam_t *param_mask_circle_center;
+	float mask_circle_center_x;
+	float mask_circle_center_y;
+	gs_eparam_t *param_mask_circle_radius;
+	float mask_circle_radius;
+	gs_eparam_t *param_mask_circle_inv;
+	bool mask_circle_inv;
+	gs_eparam_t *param_mask_circle_uv_scale;
+	float mask_rect_center_x;
+	float mask_rect_center_y;
+	float mask_rect_width;
+	float mask_rect_height;
+	float mask_rect_corner_radius;
+	float mask_rect_inv;
+	gs_image_file_t *mask_image;
+
 	uint32_t width;
 	uint32_t height;
-
-	// Gaussian Kernel
-	fDarray kernel;
-	fDarray offset;
-	gs_texture_t *kernel_texture;
-	size_t kernel_size;
 
 	// Callback Functions
 	void (*video_render)(composite_blur_filter_data_t *filter);
@@ -115,6 +216,7 @@ struct composite_blur_filter_data {
 
 static const char *composite_blur_name(void *type_data);
 static void *composite_blur_create(obs_data_t *settings, obs_source_t *source);
+static void composite_blur_defaults(obs_data_t *settings);
 static void composite_blur_destroy(void *data);
 static uint32_t composite_blur_width(void *data);
 static uint32_t composite_blur_height(void *data);
@@ -131,7 +233,9 @@ extern gs_texture_t *blend_composite(gs_texture_t *texture,
 static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 					    obs_property_t *p,
 					    obs_data_t *settings);
-
+static bool setting_effect_mask_modified(obs_properties_t *props,
+					 obs_property_t *p,
+					 obs_data_t *settings);
 static bool setting_blur_types_modified(void *data, obs_properties_t *props,
 					obs_property_t *p,
 					obs_data_t *settings);
@@ -144,3 +248,17 @@ static bool settings_blur_area(obs_properties_t *props, obs_data_t *settings);
 static bool settings_blur_directional(obs_properties_t *props);
 static bool settings_blur_zoom(obs_properties_t *props);
 static bool settings_blur_tilt_shift(obs_properties_t *props);
+
+static void apply_effect_mask(composite_blur_filter_data_t *filter);
+static void apply_effect_mask_crop(composite_blur_filter_data_t *filter);
+static void apply_effect_mask_source(composite_blur_filter_data_t *filter);
+static void apply_effect_mask_circle(composite_blur_filter_data_t *filter);
+static void apply_effect_mask_rect(composite_blur_filter_data_t *filter);
+static void load_crop_mask_effect(composite_blur_filter_data_t *filter);
+static void load_source_mask_effect(composite_blur_filter_data_t *filter);
+static void load_circle_mask_effect(composite_blur_filter_data_t *filter);
+static void effect_mask_load_effect(composite_blur_filter_data_t *filter);
+
+static bool setting_effect_mask_source_filter_modified(obs_properties_t *props,
+						       obs_property_t *p,
+						       obs_data_t *settings);

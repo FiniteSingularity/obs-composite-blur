@@ -1,8 +1,11 @@
 uniform float4x4 ViewProj;
 uniform texture2d image;
+uniform texture2d filtered_image;
 
-uniform float2 uv_size;
-uniform float pixel_size;
+uniform float circle_radius;
+uniform float2 center;
+uniform float2 uv_scale;
+uniform bool inv = false;
 
 sampler_state textureSampler{
     Filter = Linear;
@@ -25,10 +28,13 @@ VertData mainTransform(VertData v_in)
 
 float4 mainImage(VertData v_in) : TARGET
 {
-    // 1. Sample incoming pixel
-    float2 coord = v_in.uv * uv_size;
-    float2 uv_prime = (coord - fmod(coord, pixel_size) + pixel_size/2.0f) / uv_size;
-    return image.Sample(textureSampler, uv_prime);
+    float2 uv_prime = v_in.uv * uv_scale;
+    float2 center_prime = center * uv_scale;
+    float dist = distance(uv_prime, center_prime);
+    if (dist > circle_radius) {
+        return !inv ? image.Sample(textureSampler, v_in.uv) : filtered_image.Sample(textureSampler, v_in.uv);
+    }
+    return inv ? image.Sample(textureSampler, v_in.uv) : filtered_image.Sample(textureSampler, v_in.uv);
 }
 
 technique Draw

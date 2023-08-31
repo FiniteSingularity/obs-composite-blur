@@ -53,15 +53,16 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 	gs_effect_set_texture(image, texture);
 
 	const float radius = (float)fmax((float)data->radius, 1.0f);
-	gs_eparam_t *radius_param =
-		gs_effect_get_param_by_name(effect, "pixel_size");
-	gs_effect_set_float(radius_param, radius);
+	if(data->param_pixel_size) {
+		gs_effect_set_float(data->param_pixel_size, radius);
+	}
 
-	gs_eparam_t *uv_size = gs_effect_get_param_by_name(effect, "uv_size");
-	struct vec2 size;
-	size.x = (float)data->width;
-	size.y = (float)data->height;
-	gs_effect_set_vec2(uv_size, &size);
+	struct vec2 uv_size;
+	uv_size.x = (float)data->width;
+	uv_size.y = (float)data->height;
+	if(data->param_uv_size) {
+		gs_effect_set_vec2(data->param_uv_size, &uv_size);
+	}
 
 	data->output_texrender =
 		create_or_reset_texrender(data->output_texrender);
@@ -94,8 +95,8 @@ static void load_pixelate_square_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
+			} else if (strcmp(info.name, "pixel_size") == 0) {
+				filter->param_pixel_size = param;
 			}
 		}
 	}
@@ -115,8 +116,8 @@ static void load_pixelate_hexagonal_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
+			} else if (strcmp(info.name, "pixel_size") == 0) {
+				filter->param_pixel_size = param;
 			}
 		}
 	}
@@ -136,8 +137,8 @@ static void load_pixelate_circle_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
+			} else if (strcmp(info.name, "pixel_size") == 0) {
+				filter->param_pixel_size = param;
 			}
 		}
 	}
@@ -157,8 +158,8 @@ static void load_pixelate_triangle_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if (strcmp(info.name, "dir") == 0) {
-				filter->param_dir = param;
+			} else if (strcmp(info.name, "pixel_size") == 0) {
+				filter->param_pixel_size = param;
 			}
 		}
 	}
