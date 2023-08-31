@@ -5,6 +5,7 @@
 #include <util/dstr.h>
 #include <util/darray.h>
 #include <util/platform.h>
+#include <graphics/image-file.h>
 
 #include <stdio.h>
 
@@ -196,6 +197,13 @@ struct composite_blur_filter_data {
 	gs_eparam_t *param_mask_circle_inv;
 	bool mask_circle_inv;
 	gs_eparam_t *param_mask_circle_uv_scale;
+	float mask_rect_center_x;
+	float mask_rect_center_y;
+	float mask_rect_width;
+	float mask_rect_height;
+	float mask_rect_corner_radius;
+	float mask_rect_inv;
+	gs_image_file_t *mask_image;
 
 	uint32_t width;
 	uint32_t height;
@@ -245,6 +253,7 @@ static void apply_effect_mask(composite_blur_filter_data_t *filter);
 static void apply_effect_mask_crop(composite_blur_filter_data_t *filter);
 static void apply_effect_mask_source(composite_blur_filter_data_t *filter);
 static void apply_effect_mask_circle(composite_blur_filter_data_t *filter);
+static void apply_effect_mask_rect(composite_blur_filter_data_t *filter);
 static void load_crop_mask_effect(composite_blur_filter_data_t *filter);
 static void load_source_mask_effect(composite_blur_filter_data_t *filter);
 static void load_circle_mask_effect(composite_blur_filter_data_t *filter);
