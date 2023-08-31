@@ -99,6 +99,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->param_mask_crop_offset = NULL;
 	filter->param_mask_crop_box_aspect_ratio = NULL;
 	filter->param_mask_crop_corner_radius = NULL;
+	filter->param_mask_crop_feathering = NULL;
 	filter->param_mask_crop_invert = NULL;
 	filter->param_mask_source_alpha_source = NULL;
 	filter->param_mask_source_rgba_weights = NULL;
@@ -119,6 +120,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->mask_type = 0;
 	filter->mask_type_last = -1;
 	filter->mask_crop_corner_radius = 0.0f;
+	filter->mask_crop_feathering = 0.0;
 	filter->mask_crop_invert = false;
 
 	filter->mask_source_filter_type = EFFECT_MASK_SOURCE_FILTER_ALPHA;
@@ -232,6 +234,8 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		(float)obs_data_get_double(settings, "effect_mask_crop_right");
 	filter->mask_crop_corner_radius = (float)obs_data_get_double(
 		settings, "effect_mask_crop_corner_radius");
+	filter->mask_crop_feathering = (float)obs_data_get_double(
+		settings, "effect_mask_crop_feathering");
 	filter->mask_crop_invert =
 		obs_data_get_bool(settings, "effect_mask_crop_invert");
 	if (filter->mask_type != filter->mask_type_last) {
@@ -329,6 +333,8 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		(float)obs_data_get_double(settings, "effect_mask_rect_height");
 	filter->mask_rect_corner_radius = (float)obs_data_get_double(
 		settings, "effect_mask_rect_corner_radius");
+	filter->mask_rect_feathering = (float)obs_data_get_double(
+		settings, "effect_mask_rect_feathering");
 	filter->mask_rect_inv =
 		obs_data_get_bool(settings, "effect_mask_rect_invert");
 
@@ -664,6 +670,12 @@ static void apply_effect_mask_rect(composite_blur_filter_data_t *filter)
 		gs_effect_set_float(filter->param_mask_crop_corner_radius,
 				    radius);
 	}
+
+	float feathering = filter->mask_rect_feathering / 100.0f;
+	if (filter->param_mask_crop_feathering) {
+		gs_effect_set_float(filter->param_mask_crop_feathering,
+				    feathering);
+	}
 	set_blending_parameters();
 
 	filter->output_texrender =
@@ -743,6 +755,12 @@ static void apply_effect_mask_crop(composite_blur_filter_data_t *filter)
 	if (filter->param_mask_crop_corner_radius) {
 		gs_effect_set_float(filter->param_mask_crop_corner_radius,
 				    radius);
+	}
+
+	float feathering = filter->mask_crop_feathering / 100.0f;
+	if (filter->param_mask_crop_feathering) {
+		gs_effect_set_float(filter->param_mask_crop_feathering,
+				    feathering);
 	}
 	set_blending_parameters();
 
@@ -1046,6 +1064,12 @@ static obs_properties_t *composite_blur_properties(void *data)
 			"CompositeBlurFilter.EffectMask.Rect.CornerRadius"),
 		0.0, 100.01, 0.01);
 
+	obs_properties_add_float_slider(
+		effect_mask_rect, "effect_mask_rect_feathering",
+		obs_module_text(
+			"CompositeBlurFilter.EffectMask.Rect.Feathering"),
+		0.0, 100.01, 0.01);
+
 	obs_properties_add_bool(
 		effect_mask_rect, "effect_mask_rect_invert",
 		obs_module_text("CompositeBlurFilter.EffectMask.Invert"));
@@ -1160,6 +1184,11 @@ static obs_properties_t *composite_blur_properties(void *data)
 		effect_mask_crop, "effect_mask_crop_corner_radius",
 		obs_module_text("CompositeBlurFilter.EffectMask.CornerRadius"),
 		0.0, 50.01, 0.01);
+
+	obs_properties_add_float_slider(
+		effect_mask_crop, "effect_mask_crop_feathering",
+		obs_module_text("CompositeBlurFilter.EffectMask.Feathering"),
+		0.0, 100.01, 0.01);
 
 	obs_properties_add_bool(
 		effect_mask_crop, "effect_mask_crop_invert",
@@ -1566,6 +1595,8 @@ static void load_crop_mask_effect(composite_blur_filter_data_t *filter)
 					param;
 			} else if (strcmp(info.name, "corner_radius") == 0) {
 				filter->param_mask_crop_corner_radius = param;
+			} else if (strcmp(info.name, "feathering") == 0) {
+				filter->param_mask_crop_feathering = param;
 			} else if (strcmp(info.name, "inv") == 0) {
 				filter->param_mask_crop_invert = param;
 			}

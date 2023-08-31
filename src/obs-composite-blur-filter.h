@@ -175,6 +175,8 @@ struct composite_blur_filter_data {
 	gs_eparam_t *param_mask_crop_box_aspect_ratio;
 	gs_eparam_t *param_mask_crop_corner_radius;
 	float mask_crop_corner_radius;
+	gs_eparam_t *param_mask_crop_feathering;
+	float mask_crop_feathering;
 	gs_eparam_t *param_mask_crop_invert;
 	bool mask_crop_invert;
 	int mask_source_filter_type;
@@ -204,6 +206,7 @@ struct composite_blur_filter_data {
 	float mask_rect_width;
 	float mask_rect_height;
 	float mask_rect_corner_radius;
+	float mask_rect_feathering;
 	float mask_rect_inv;
 	gs_image_file_t *mask_image;
 
