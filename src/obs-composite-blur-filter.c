@@ -1044,7 +1044,7 @@ static obs_properties_t *composite_blur_properties(void *data)
 
 	obs_properties_t *effect_mask_source = obs_properties_create();
 
-	obs_property_t *effect_mask_source_image = obs_properties_add_path(
+	obs_properties_add_path(
 		effect_mask_source, "effect_mask_source_file",
 		obs_module_text("CompositeBlurFilter.EffectMask.Source.File"),
 		OBS_PATH_FILE,
