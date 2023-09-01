@@ -1815,6 +1815,7 @@ gs_texture_t *blend_composite(gs_texture_t *texture,
 		set_blending_parameters();
 		if (gs_texrender_begin(data->composite_render, data->width,
 				       data->height)) {
+			gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height, -100.0f, 100.0f);
 			while (gs_effect_loop(composite_effect, "Draw"))
 				gs_draw_sprite(texture, 0, data->width,
 					       data->height);
