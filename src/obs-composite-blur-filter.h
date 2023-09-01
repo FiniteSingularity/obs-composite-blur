@@ -269,3 +269,6 @@ static void effect_mask_load_effect(composite_blur_filter_data_t *filter);
 static bool setting_effect_mask_source_filter_modified(obs_properties_t *props,
 						       obs_property_t *p,
 						       obs_data_t *settings);
+
+static enum gs_color_space composite_blur_get_color_space(
+	void *data, size_t count, const enum gs_color_space *preferred_spaces);

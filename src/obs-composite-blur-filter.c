@@ -8,7 +8,8 @@
 struct obs_source_info obs_composite_blur = {
 	.id = "obs_composite_blur",
 	.type = OBS_SOURCE_TYPE_FILTER,
-	.output_flags = OBS_SOURCE_VIDEO,
+	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_SRGB |
+			OBS_SOURCE_CUSTOM_DRAW,
 	.get_name = composite_blur_name,
 	.create = composite_blur_create,
 	.destroy = composite_blur_destroy,
@@ -18,7 +19,9 @@ struct obs_source_info obs_composite_blur = {
 	.get_width = composite_blur_width,
 	.get_height = composite_blur_height,
 	.get_properties = composite_blur_properties,
-	.get_defaults = composite_blur_defaults};
+	.get_defaults = composite_blur_defaults,
+	.video_get_color_space = composite_blur_get_color_space,
+};
 
 static const char *composite_blur_name(void *unused)
 {
@@ -1837,4 +1840,21 @@ gs_texture_t *blend_composite(gs_texture_t *texture,
 		gs_blend_state_pop();
 	}
 	return texture;
+}
+
+static enum gs_color_space
+composite_blur_get_color_space(void *data, size_t count,
+			       const enum gs_color_space *preferred_spaces)
+{
+	UNUSED_PARAMETER(count);
+	UNUSED_PARAMETER(preferred_spaces);
+	struct composite_blur_filter_data *filter = data;
+	obs_source_t *target = obs_filter_get_target(filter->context);
+	const enum gs_color_space potential_spaces[] = {
+		GS_CS_SRGB,
+		GS_CS_SRGB_16F,
+		GS_CS_709_EXTENDED,
+	};
+	return obs_source_get_color_space(target, OBS_COUNTOF(potential_spaces),
+					  potential_spaces);
 }
