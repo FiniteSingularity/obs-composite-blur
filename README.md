@@ -118,7 +118,7 @@ All of the same options as [Source](#source), but allows you to select an image 
 <table>
   <tbody>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/FiniteSingularity"><img src="https://avatars.githubusercontent.com/u/72580859?v=4?s=100" width="100px;" alt="FiniteSingularity"/><br /><sub><b>FiniteSingularity</b></sub></a><br /><a href="#doc-FiniteSingularity" title="Documentation">📖</a> <a href="#code-FiniteSingularity" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/FiniteSingularity"><img src="https://avatars.githubusercontent.com/u/72580859?v=4?s=100" width="100px;" alt="FiniteSingularity"/><br /><sub><b>FiniteSingularity</b></sub></a><br /><a href="#code-FiniteSingularity" title="Code">💻</a> <a href="#doc-FiniteSingularity" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/exeldro"><img src="https://avatars.githubusercontent.com/u/5457024?v=4?s=100" width="100px;" alt="Exeldro"/><br /><sub><b>Exeldro</b></sub></a><br /><a href="#code-exeldro" title="Code">💻</a></td>
     </tr>
   </tbody>
