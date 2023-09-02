@@ -87,30 +87,30 @@ static void gaussian_area_blur(composite_blur_filter_data_t *data)
 	gs_effect_set_texture(image, texture);
 
 #ifdef _WIN32
-	if(data->param_weight) {
+	if (data->param_weight) {
 		gs_effect_set_val(data->param_weight, data->kernel.array,
-			  	data->kernel.num * sizeof(float));
+				  data->kernel.num * sizeof(float));
 	}
-	if(data->param_offset) {
+	if (data->param_offset) {
 		gs_effect_set_val(data->param_offset, data->offset.array,
-				data->offset.num * sizeof(float));
+				  data->offset.num * sizeof(float));
 	}
 #else
-	if(data->param_kernel_texture) {
-		gs_effect_set_texture(data->param_kernel_texture, data->kernel_texture);
+	if (data->param_kernel_texture) {
+		gs_effect_set_texture(data->param_kernel_texture,
+				      data->kernel_texture);
 	}
 #endif
 
 	const int k_size = (int)data->kernel_size;
-	if(data->param_kernel_size) {
+	if (data->param_kernel_size) {
 		gs_effect_set_int(data->param_kernel_size, k_size);
 	}
 
-	
 	struct vec2 texel_step;
 	texel_step.x = 1.0f / data->width;
 	texel_step.y = 0.0f;
-	if(data->param_texel_step) {
+	if (data->param_texel_step) {
 		gs_effect_set_vec2(data->param_texel_step, &texel_step);
 	}
 
@@ -132,14 +132,15 @@ static void gaussian_area_blur(composite_blur_filter_data_t *data)
 	gs_effect_set_texture(image, texture);
 
 #ifndef _WIN32
-	if(data->param_kernel_texture) {
-		gs_effect_set_texture(data->param_kernel_texture, data->kernel_texture);
+	if (data->param_kernel_texture) {
+		gs_effect_set_texture(data->param_kernel_texture,
+				      data->kernel_texture);
 	}
 #endif
 
 	texel_step.x = 0.0f;
 	texel_step.y = 1.0f / data->height;
-	if(data->param_texel_step) {
+	if (data->param_texel_step) {
 		gs_effect_set_vec2(data->param_texel_step, &texel_step);
 	}
 
@@ -177,22 +178,23 @@ static void gaussian_directional_blur(composite_blur_filter_data_t *data)
 	gs_effect_set_texture(image, texture);
 
 #ifdef _WIN32
-	if(data->param_weight) {
+	if (data->param_weight) {
 		gs_effect_set_val(data->param_weight, data->kernel.array,
-			  	data->kernel.num * sizeof(float));
+				  data->kernel.num * sizeof(float));
 	}
-	if(data->param_offset) {
+	if (data->param_offset) {
 		gs_effect_set_val(data->param_offset, data->offset.array,
-				data->offset.num * sizeof(float));
+				  data->offset.num * sizeof(float));
 	}
 #else
-	if(data->param_kernel_texture) {
-		gs_effect_set_texture(data->param_kernel_texture, data->kernel_texture);
+	if (data->param_kernel_texture) {
+		gs_effect_set_texture(data->param_kernel_texture,
+				      data->kernel_texture);
 	}
 #endif
 
 	const int k_size = (int)data->kernel_size;
-	if(data->param_kernel_size) {
+	if (data->param_kernel_size) {
 		gs_effect_set_int(data->param_kernel_size, k_size);
 	}
 
@@ -200,7 +202,7 @@ static void gaussian_directional_blur(composite_blur_filter_data_t *data)
 	float rads = -data->angle * (M_PI / 180.0f);
 	texel_step.x = (float)cos(rads) / data->width;
 	texel_step.y = (float)sin(rads) / data->height;
-	if(data->param_texel_step) {
+	if (data->param_texel_step) {
 		gs_effect_set_vec2(data->param_texel_step, &texel_step);
 	}
 
@@ -240,22 +242,23 @@ static void gaussian_motion_blur(composite_blur_filter_data_t *data)
 	gs_effect_set_texture(image, texture);
 
 #ifdef _WIN32
-	if(data->param_weight) {
+	if (data->param_weight) {
 		gs_effect_set_val(data->param_weight, data->kernel.array,
-			  	data->kernel.num * sizeof(float));
+				  data->kernel.num * sizeof(float));
 	}
-	if(data->param_offset) {
+	if (data->param_offset) {
 		gs_effect_set_val(data->param_offset, data->offset.array,
-				data->offset.num * sizeof(float));
+				  data->offset.num * sizeof(float));
 	}
 #else
-	if(data->param_kernel_texture) {
-		gs_effect_set_texture(data->param_kernel_texture, data->kernel_texture);
+	if (data->param_kernel_texture) {
+		gs_effect_set_texture(data->param_kernel_texture,
+				      data->kernel_texture);
 	}
 #endif
 
 	const int k_size = (int)data->kernel_size;
-	if(data->param_kernel_size) {
+	if (data->param_kernel_size) {
 		gs_effect_set_int(data->param_kernel_size, k_size);
 	}
 
@@ -263,7 +266,7 @@ static void gaussian_motion_blur(composite_blur_filter_data_t *data)
 	float rads = -data->angle * (M_PI / 180.0f);
 	texel_step.x = (float)cos(rads) / data->width;
 	texel_step.y = (float)sin(rads) / data->height;
-	if(data->param_texel_step) {
+	if (data->param_texel_step) {
 		gs_effect_set_vec2(data->param_texel_step, &texel_step);
 	}
 
@@ -304,36 +307,37 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 	gs_effect_set_texture(image, texture);
 
 #ifdef _WIN32
-	if(data->param_weight) {
+	if (data->param_weight) {
 		gs_effect_set_val(data->param_weight, data->kernel.array,
-			  	data->kernel.num * sizeof(float));
+				  data->kernel.num * sizeof(float));
 	}
-	if(data->param_offset) {
+	if (data->param_offset) {
 		gs_effect_set_val(data->param_offset, data->offset.array,
-				data->offset.num * sizeof(float));
+				  data->offset.num * sizeof(float));
 	}
 #else
-	if(data->param_kernel_texture) {
-		gs_effect_set_texture(data->param_kernel_texture, data->kernel_texture);
+	if (data->param_kernel_texture) {
+		gs_effect_set_texture(data->param_kernel_texture,
+				      data->kernel_texture);
 	}
 #endif
 
 	const int k_size = (int)data->kernel_size;
-	if(data->param_kernel_size) {
+	if (data->param_kernel_size) {
 		gs_effect_set_int(data->param_kernel_size, k_size);
 	}
 
 	struct vec2 radial_center;
 	radial_center.x = data->center_x;
 	radial_center.y = data->center_y;
-	if(data->param_radial_center) {
+	if (data->param_radial_center) {
 		gs_effect_set_vec2(data->param_radial_center, &radial_center);
 	}
 
 	struct vec2 uv_size;
 	uv_size.x = (float)data->width;
 	uv_size.y = (float)data->height;
-	if(data->param_uv_size) {
+	if (data->param_uv_size) {
 		gs_effect_set_vec2(data->param_uv_size, &uv_size);
 	}
 
@@ -595,7 +599,7 @@ static void sample_kernel(float radius, composite_blur_filter_data_t *filter)
 		(const uint8_t **)&weight_offset_texture.array, 0);
 
 	if (!filter->kernel_texture) {
-		blog(LOG_INFO, "Gaussian Texture couldn't be created.");
+		blog(LOG_WARNING, "Gaussian Texture couldn't be created.");
 	}
 	obs_leave_graphics();
 }
