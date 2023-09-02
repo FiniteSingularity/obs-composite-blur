@@ -33,6 +33,9 @@ Composite Blur Plugin is a comprehensive blur plugin that provides blur algorith
 - ➕ Composite Blur also allows setting a `Background Source` so that it can properly [composite blurred masks](#composite-background), allowing you to properly layer blurred sources.
 - 🎭 Finally, Composite Blur provides an option to mask where and how much blurring occurs on the source via [Crop](#crop), [Rectangle](#rectangle), [Circle](#circle), [Source](#source), and [Image](#image) masks.
 
+## Installation
+Go to the [Releases Page](https://github.com/FiniteSingularity/obs-composite-blur/releases), click `Assets` under the latest release, and select either the Windows, MacOS, or Linux installer.  Download the file, and run it, to install for your copy of OBS.
+
 ## Blur Algorithms
 Composite Blur provides several different algorithms to blur your sources. The blur algorithms are written with performance in mind using techniques like linear sampling and GPU texture interpolation to stretch what your GPU can do. Additonally, the algorithms have been written with finely adjustable blur amounts, that allow for smooth transitions and animations when using other plugins like Move Transition.
 
