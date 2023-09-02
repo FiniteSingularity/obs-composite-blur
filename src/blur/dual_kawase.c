@@ -98,7 +98,6 @@ gs_texture_t *mix_textures(composite_blur_filter_data_t *data,
 			   gs_texture_t *base, gs_texture_t *residual,
 			   float ratio)
 {
-	blog(LOG_INFO, "Mixing Textures here!");
 	gs_effect_t *effect = data->mix_effect;
 	// Swap renderers
 	gs_texrender_t *tmp = data->render;
@@ -109,7 +108,6 @@ gs_texture_t *mix_textures(composite_blur_filter_data_t *data,
 
 	uint32_t w = gs_texture_get_width(base);
 	uint32_t h = gs_texture_get_height(base);
-	blog(LOG_INFO, "%i, %i", w, h);
 
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, base);

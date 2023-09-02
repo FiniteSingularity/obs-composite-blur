@@ -301,11 +301,12 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		gs_image_file_free(filter->mask_image);
 		obs_leave_graphics();
 	}
-	gs_image_file_init(filter->mask_image, mask_image_file);
-	obs_enter_graphics();
-	gs_image_file_init_texture(filter->mask_image);
-	obs_leave_graphics();
-
+	if (strlen(mask_image_file)) {
+		gs_image_file_init(filter->mask_image, mask_image_file);
+		obs_enter_graphics();
+		gs_image_file_init_texture(filter->mask_image);
+		obs_leave_graphics();
+	}
 	filter->mask_source_multiplier = (float)obs_data_get_double(
 		settings, "effect_mask_source_filter_multiplier");
 
@@ -528,7 +529,6 @@ static void apply_effect_mask_source(composite_blur_filter_data_t *filter)
 		alpha_texture = gs_texrender_get_texture(source_render);
 	} else if (filter->mask_type == EFFECT_MASK_TYPE_IMAGE &&
 		   filter->mask_image) {
-		blog(LOG_INFO, "IMAGE MASK EXISTS!");
 		alpha_texture = filter->mask_image->texture;
 	}
 
@@ -611,7 +611,6 @@ static void apply_effect_mask_rect(composite_blur_filter_data_t *filter)
 	float bot = (100.0f - filter->mask_rect_center_y -
 		     filter->mask_rect_height / 2.0f) /
 		    100.0f;
-	//blog(LOG_INFO, "%f, %f, %f, %f", right, left, top, bot);
 
 	// Swap output with render
 	gs_texrender_t *tmp = filter->output_texrender;
@@ -1658,7 +1657,6 @@ static void load_source_mask_effect(composite_blur_filter_data_t *filter)
 
 static void load_circle_mask_effect(composite_blur_filter_data_t *filter)
 {
-	blog(LOG_INFO, "==== LOAD CIRCLE MASK EFFECT ====");
 	if (filter->effect_mask_effect != NULL) {
 		obs_enter_graphics();
 		gs_effect_destroy(filter->effect_mask_effect);
@@ -1815,7 +1813,8 @@ gs_texture_t *blend_composite(gs_texture_t *texture,
 		set_blending_parameters();
 		if (gs_texrender_begin(data->composite_render, data->width,
 				       data->height)) {
-			gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height, -100.0f, 100.0f);
+			gs_ortho(0.0f, (float)data->width, 0.0f,
+				 (float)data->height, -100.0f, 100.0f);
 			while (gs_effect_loop(composite_effect, "Draw"))
 				gs_draw_sprite(texture, 0, data->width,
 					       data->height);
