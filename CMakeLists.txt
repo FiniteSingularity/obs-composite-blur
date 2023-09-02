@@ -9,7 +9,7 @@ else()
   cmake_minimum_required(VERSION 3.18)
 endif()
 
-project(obs-composite-blur VERSION 0.0.7)
+project(obs-composite-blur VERSION 0.0.8)
 set(PROJECT_FULL_NAME "OBS Composite Blur")
 
 # Set new UUIDs when you start to create a new plugin.
