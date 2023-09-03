@@ -9,8 +9,8 @@ else()
   cmake_minimum_required(VERSION 3.18)
 endif()
 
-project(obs-composite-blur VERSION 0.0.8)
-set(PROJECT_FULL_NAME "OBS Composite Blur")
+project(obs-composite-blur VERSION 1.0.0)
+set(PROJECT_FULL_NAME "Composite Blur")
 
 # Set new UUIDs when you start to create a new plugin.
 set(MACOS_PACKAGE_UUID "4b7ee47c-b3d2-43e9-8db0-088e4a704e82")
