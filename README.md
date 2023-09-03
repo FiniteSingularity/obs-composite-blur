@@ -130,3 +130,5 @@ All of the same options as [Source](#source), but allows you to select an image 
 <!-- prettier-ignore-end -->
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
+This project follows the [all-contributors](https://allcontributors.org) specification.
+Contributions of any kind are welcome!
