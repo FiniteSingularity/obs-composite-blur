@@ -12,8 +12,7 @@ OBS_MODULE_AUTHOR("FiniteSingularity");
 
 bool obs_module_load(void)
 {
-	blog(LOG_INFO, "[OBS Composite Blur] loaded version %s",
-	     PROJECT_VERSION);
+	blog(LOG_INFO, "[Composite Blur] loaded version %s", PROJECT_VERSION);
 	obs_register_source(&obs_composite_blur);
 
 	return true;
