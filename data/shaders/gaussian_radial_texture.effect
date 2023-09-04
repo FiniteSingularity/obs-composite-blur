@@ -42,7 +42,7 @@ float4 mainImage(VertData v_in) : TARGET
     // convert radial center pixel coordinate to uv space
     float2 radial_center_uv = radial_center/uv_size;
     // calculate distance (in uv space) between coordinate and radial center.
-    float dist = distance(v_in.uv, radial_center_uv);
+    float dist2 = distance(v_in.uv, radial_center_uv)*2.0;
     // calculate unit vector in direction of radial center to coordinate
     float2 texel_step = normalize(v_in.uv - radial_center_uv)/uv_size;
 
@@ -60,7 +60,7 @@ float4 mainImage(VertData v_in) : TARGET
         weight = kernel_values[0];
         float offset = kernel_values[1];
         total_weight += weight;
-        col += image.Sample(textureSampler, v_in.uv - (4.0 * offset * texel_step * dist)) * weight;
+        col += image.Sample(textureSampler, v_in.uv - (offset * texel_step * dist2)) * weight;
     }
     // Normalize the color by the total_weight
     col /= total_weight;
