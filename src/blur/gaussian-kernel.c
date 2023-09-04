@@ -3,7 +3,6 @@
 // Pre-computed center-right symmetric normalized gaussian kernel lookup table.
 // kernel[0] is maximum value of the gaussian function. Subsequent values are
 // symmetrical value moving out from center in both directions.
-const size_t gaussian_kernel_size = 1024;
 const float gaussian_kernel[] = {
 	0.0011719249766483813f,  0.0011719199473027937f,
 	0.0011719048593955318f,  0.0011718797133150934f,
@@ -518,3 +517,4 @@ const float gaussian_kernel[] = {
 	1.3483821244697416e-05f, 1.3366231896640793e-05f,
 	1.3249554296304238e-05f, 1.313378247893852e-05f,
 	1.3018910508666564e-05f};
+const size_t gaussian_kernel_size = sizeof(gaussian_kernel);
