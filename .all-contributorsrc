@@ -44,6 +44,16 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "dnaka91",
+      "name": "Dominik Nakamura",
+      "avatar_url": "https://avatars.githubusercontent.com/u/36804488?v=4",
+      "profile": "https://home.dnaka91.rocks",
+      "contributions": [
+        "doc",
+        "platform"
+      ]
     }
   ]
 }
