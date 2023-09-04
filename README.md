@@ -38,6 +38,14 @@ Composite Blur Plugin is a comprehensive blur plugin that provides blur algorith
 
 Go to the [Releases Page](https://github.com/FiniteSingularity/obs-composite-blur/releases), click `Assets` under the latest release, and select either the Windows, MacOS, or Linux installer. Download the file, and run it, to install for your copy of OBS.
 
+### From AUR
+
+Arch Linux users can install obs-composite-blur from the [AUR](https://aur.archlinux.org/) using an [AUR helper](https://wiki.archlinux.org/title/AUR_helpers). For example:
+
+```sh
+paru -S obs-composite-blur
+```
+
 ## Blur Algorithms
 
 Composite Blur provides several different algorithms to blur your sources. The blur algorithms are written with performance in mind using techniques like linear sampling and GPU texture interpolation to stretch what your GPU can do. Additonally, the algorithms have been written with finely adjustable blur amounts, that allow for smooth transitions and animations when using other plugins like Move Transition.
