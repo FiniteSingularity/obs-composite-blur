@@ -587,6 +587,8 @@ static void apply_effect_mask_source(composite_blur_filter_data_t *filter)
 
 	if (gs_texrender_begin(filter->output_texrender, filter->width,
 			       filter->height)) {
+		gs_ortho(0.0f, (float)filter->width, 0.0f,
+			 (float)filter->height, -100.0f, 100.0f);
 		while (gs_effect_loop(effect, "Draw"))
 			gs_draw_sprite(texture, 0, filter->width,
 				       filter->height);
@@ -682,6 +684,8 @@ static void apply_effect_mask_rect(composite_blur_filter_data_t *filter)
 
 	if (gs_texrender_begin(filter->output_texrender, filter->width,
 			       filter->height)) {
+		gs_ortho(0.0f, (float)filter->width, 0.0f,
+			 (float)filter->height, -100.0f, 100.0f);
 		while (gs_effect_loop(effect, "Draw"))
 			gs_draw_sprite(texture, 0, filter->width,
 				       filter->height);
@@ -766,8 +770,11 @@ static void apply_effect_mask_crop(composite_blur_filter_data_t *filter)
 	filter->output_texrender =
 		create_or_reset_texrender(filter->output_texrender);
 
+
 	if (gs_texrender_begin(filter->output_texrender, filter->width,
 			       filter->height)) {
+		gs_ortho(0.0f, (float)filter->width, 0.0f,
+			 (float)filter->height, -100.0f, 100.0f);
 		while (gs_effect_loop(effect, "Draw"))
 			gs_draw_sprite(texture, 0, filter->width,
 				       filter->height);
@@ -838,6 +845,8 @@ static void apply_effect_mask_circle(composite_blur_filter_data_t *filter)
 
 	if (gs_texrender_begin(filter->output_texrender, filter->width,
 			       filter->height)) {
+		gs_ortho(0.0f, (float)filter->width, 0.0f,
+			 (float)filter->height, -100.0f, 100.0f);
 		while (gs_effect_loop(effect, "Draw"))
 			gs_draw_sprite(texture, 0, filter->width,
 				       filter->height);
