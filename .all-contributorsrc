@@ -54,6 +54,15 @@
         "doc",
         "platform"
       ]
+    },
+    {
+      "login": "WonderWez",
+      "name": "WonderWez",
+      "avatar_url": "https://avatars.githubusercontent.com/u/144557600?v=4",
+      "profile": "https://github.com/WonderWez",
+      "contributions": [
+        "bug"
+      ]
     }
   ]
 }
