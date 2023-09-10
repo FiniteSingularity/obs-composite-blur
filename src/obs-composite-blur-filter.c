@@ -135,6 +135,12 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	da_init(filter->kernel);
 	//composite_blur_defaults(settings);
 	obs_source_update(source, settings);
+	obs_enter_graphics();
+	// Grab the device type, can be:
+	// GS_DEVICE_OPENGL
+	// GS_DEVICE_DIRECT3D_11
+	filter->device_type = gs_get_device_type();
+	obs_leave_graphics();
 	return filter;
 }
 

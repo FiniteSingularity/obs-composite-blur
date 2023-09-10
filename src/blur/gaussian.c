@@ -86,21 +86,25 @@ static void gaussian_area_blur(composite_blur_filter_data_t *data)
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
-#ifdef _WIN32
-	if (data->param_weight) {
-		gs_effect_set_val(data->param_weight, data->kernel.array,
-				  data->kernel.num * sizeof(float));
+	switch (data->device_type) {
+	case GS_DEVICE_DIRECT3D_11:
+		if (data->param_weight) {
+			gs_effect_set_val(data->param_weight,
+					  data->kernel.array,
+					  data->kernel.num * sizeof(float));
+		}
+		if (data->param_offset) {
+			gs_effect_set_val(data->param_offset,
+					  data->offset.array,
+					  data->offset.num * sizeof(float));
+		}
+		break;
+	case GS_DEVICE_OPENGL:
+		if (data->param_kernel_texture) {
+			gs_effect_set_texture(data->param_kernel_texture,
+					      data->kernel_texture);
+		}
 	}
-	if (data->param_offset) {
-		gs_effect_set_val(data->param_offset, data->offset.array,
-				  data->offset.num * sizeof(float));
-	}
-#else
-	if (data->param_kernel_texture) {
-		gs_effect_set_texture(data->param_kernel_texture,
-				      data->kernel_texture);
-	}
-#endif
 
 	const int k_size = (int)data->kernel_size;
 	if (data->param_kernel_size) {
@@ -131,12 +135,10 @@ static void gaussian_area_blur(composite_blur_filter_data_t *data)
 	image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
-#ifndef _WIN32
-	if (data->param_kernel_texture) {
+	if (data->device_type == GS_DEVICE_OPENGL && data->param_kernel_texture) {
 		gs_effect_set_texture(data->param_kernel_texture,
 				      data->kernel_texture);
 	}
-#endif
 
 	texel_step.x = 0.0f;
 	texel_step.y = 1.0f / data->height;
@@ -177,21 +179,26 @@ static void gaussian_directional_blur(composite_blur_filter_data_t *data)
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
-#ifdef _WIN32
-	if (data->param_weight) {
-		gs_effect_set_val(data->param_weight, data->kernel.array,
-				  data->kernel.num * sizeof(float));
+	switch (data->device_type) {
+	case GS_DEVICE_DIRECT3D_11:
+		if (data->param_weight) {
+			gs_effect_set_val(data->param_weight,
+					  data->kernel.array,
+					  data->kernel.num * sizeof(float));
+		}
+		if (data->param_offset) {
+			gs_effect_set_val(data->param_offset,
+					  data->offset.array,
+					  data->offset.num * sizeof(float));
+		}
+		break;
+	case GS_DEVICE_OPENGL:
+		if (data->param_kernel_texture) {
+			gs_effect_set_texture(data->param_kernel_texture,
+					      data->kernel_texture);
+		}
+		break;
 	}
-	if (data->param_offset) {
-		gs_effect_set_val(data->param_offset, data->offset.array,
-				  data->offset.num * sizeof(float));
-	}
-#else
-	if (data->param_kernel_texture) {
-		gs_effect_set_texture(data->param_kernel_texture,
-				      data->kernel_texture);
-	}
-#endif
 
 	const int k_size = (int)data->kernel_size;
 	if (data->param_kernel_size) {
@@ -241,21 +248,26 @@ static void gaussian_motion_blur(composite_blur_filter_data_t *data)
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
-#ifdef _WIN32
-	if (data->param_weight) {
-		gs_effect_set_val(data->param_weight, data->kernel.array,
-				  data->kernel.num * sizeof(float));
+	switch (data->device_type) {
+	case GS_DEVICE_DIRECT3D_11:
+		if (data->param_weight) {
+			gs_effect_set_val(data->param_weight,
+					  data->kernel.array,
+					  data->kernel.num * sizeof(float));
+		}
+		if (data->param_offset) {
+			gs_effect_set_val(data->param_offset,
+					  data->offset.array,
+					  data->offset.num * sizeof(float));
+		}
+		break;
+	case GS_DEVICE_OPENGL:
+		if (data->param_kernel_texture) {
+			gs_effect_set_texture(data->param_kernel_texture,
+					      data->kernel_texture);
+		}
+		break;
 	}
-	if (data->param_offset) {
-		gs_effect_set_val(data->param_offset, data->offset.array,
-				  data->offset.num * sizeof(float));
-	}
-#else
-	if (data->param_kernel_texture) {
-		gs_effect_set_texture(data->param_kernel_texture,
-				      data->kernel_texture);
-	}
-#endif
 
 	const int k_size = (int)data->kernel_size;
 	if (data->param_kernel_size) {
@@ -306,21 +318,26 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
-#ifdef _WIN32
-	if (data->param_weight) {
-		gs_effect_set_val(data->param_weight, data->kernel.array,
-				  data->kernel.num * sizeof(float));
+	switch (data->device_type) {
+	case GS_DEVICE_DIRECT3D_11:
+		if (data->param_weight) {
+			gs_effect_set_val(data->param_weight,
+					  data->kernel.array,
+					  data->kernel.num * sizeof(float));
+		}
+		if (data->param_offset) {
+			gs_effect_set_val(data->param_offset,
+					  data->offset.array,
+					  data->offset.num * sizeof(float));
+		}
+		break;
+	case GS_DEVICE_OPENGL:
+		if (data->param_kernel_texture) {
+			gs_effect_set_texture(data->param_kernel_texture,
+					      data->kernel_texture);
+		}
+		break;
 	}
-	if (data->param_offset) {
-		gs_effect_set_val(data->param_offset, data->offset.array,
-				  data->offset.num * sizeof(float));
-	}
-#else
-	if (data->param_kernel_texture) {
-		gs_effect_set_texture(data->param_kernel_texture,
-				      data->kernel_texture);
-	}
-#endif
 
 	const int k_size = (int)data->kernel_size;
 	if (data->param_kernel_size) {
@@ -360,11 +377,12 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 
 static void load_1d_gaussian_effect(composite_blur_filter_data_t *filter)
 {
-#ifdef _WIN32
-	const char *effect_file_path = "/shaders/gaussian_1d.effect";
-#else
-	const char *effect_file_path = "/shaders/gaussian_1d_texture.effect";
-#endif
+
+	const char *effect_file_path =
+		filter->device_type == GS_DEVICE_DIRECT3D_11
+			? "/shaders/gaussian_1d.effect"
+			: "/shaders/gaussian_1d_texture.effect";
+
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
 		size_t effect_count = gs_effect_get_num_params(filter->effect);
@@ -393,12 +411,11 @@ static void load_1d_gaussian_effect(composite_blur_filter_data_t *filter)
 
 static void load_motion_gaussian_effect(composite_blur_filter_data_t *filter)
 {
-#ifdef _WIN32
-	const char *effect_file_path = "/shaders/gaussian_motion.effect";
-#else
+
 	const char *effect_file_path =
-		"/shaders/gaussian_motion_texture.effect";
-#endif
+		filter->device_type == GS_DEVICE_DIRECT3D_11
+			? "/shaders/gaussian_motion.effect"
+			: "/shaders/gaussian_motion_texture.effect";
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
 		size_t effect_count = gs_effect_get_num_params(filter->effect);
@@ -427,12 +444,10 @@ static void load_motion_gaussian_effect(composite_blur_filter_data_t *filter)
 
 static void load_radial_gaussian_effect(composite_blur_filter_data_t *filter)
 {
-#ifdef _WIN32
-	const char *effect_file_path = "/shaders/gaussian_radial.effect";
-#else
 	const char *effect_file_path =
-		"/shaders/gaussian_radial_texture.effect";
-#endif
+		filter->device_type == GS_DEVICE_DIRECT3D_11
+			? "/shaders/gaussian_radial.effect"
+			: "/shaders/gaussian_radial_texture.effect";
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
 		size_t effect_count = gs_effect_get_num_params(filter->effect);
