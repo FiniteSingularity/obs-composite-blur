@@ -508,20 +508,11 @@ static void apply_effect_mask_source(composite_blur_filter_data_t *filter)
 			    source_render, base_width, base_height, space)) {
 			const float w = (float)base_width;
 			const float h = (float)base_height;
-			uint32_t flags = obs_source_get_output_flags(source);
-			const bool custom_draw =
-				(flags & OBS_SOURCE_CUSTOM_DRAW) != 0;
-			const bool async = (flags & OBS_SOURCE_ASYNC) != 0;
 			struct vec4 clear_color;
-
 			vec4_zero(&clear_color);
 			gs_clear(GS_CLEAR_COLOR, &clear_color, 0.0f, 0);
 			gs_ortho(0.0f, w, 0.0f, h, -100.0f, 100.0f);
-
-			if (!custom_draw && !async)
-				obs_source_default_render(source);
-			else
-				obs_source_video_render(source);
+			obs_source_video_render(source);
 			gs_texrender_end(source_render);
 		}
 		gs_blend_state_pop();
@@ -769,7 +760,6 @@ static void apply_effect_mask_crop(composite_blur_filter_data_t *filter)
 
 	filter->output_texrender =
 		create_or_reset_texrender(filter->output_texrender);
-
 
 	if (gs_texrender_begin(filter->output_texrender, filter->width,
 			       filter->height)) {
