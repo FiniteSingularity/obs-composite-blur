@@ -78,6 +78,13 @@ static void gaussian_area_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
+	if (data->radius < MIN_GAUSSIAN_BLUR_RADIUS) {
+		data->output_texrender =
+			create_or_reset_texrender(data->output_texrender);
+		texrender_set_texture(texture, data->output_texrender);
+		return;
+	}
+
 	texture = blend_composite(texture, data);
 
 	data->render2 = create_or_reset_texrender(data->render2);
@@ -173,6 +180,13 @@ static void gaussian_directional_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
+	if (data->radius < MIN_GAUSSIAN_BLUR_RADIUS) {
+		data->output_texrender =
+			create_or_reset_texrender(data->output_texrender);
+		texrender_set_texture(texture, data->output_texrender);
+		return;
+	}
+
 	texture = blend_composite(texture, data);
 
 	// 1. Single pass- blur only in one direction
@@ -239,6 +253,13 @@ static void gaussian_motion_blur(composite_blur_filter_data_t *data)
 	gs_texture_t *texture = gs_texrender_get_texture(data->input_texrender);
 
 	if (!effect || !texture) {
+		return;
+	}
+
+	if (data->radius < MIN_GAUSSIAN_BLUR_RADIUS) {
+		data->output_texrender =
+			create_or_reset_texrender(data->output_texrender);
+		texrender_set_texture(texture, data->output_texrender);
 		return;
 	}
 
@@ -312,6 +333,13 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
+	if (data->radius < MIN_GAUSSIAN_BLUR_RADIUS) {
+		data->output_texrender =
+			create_or_reset_texrender(data->output_texrender);
+		texrender_set_texture(texture, data->output_texrender);
+		return;
+	}
+
 	texture = blend_composite(texture, data);
 
 	// 1. Single pass- blur only in one direction
@@ -377,7 +405,6 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 
 static void load_1d_gaussian_effect(composite_blur_filter_data_t *filter)
 {
-
 	const char *effect_file_path =
 		filter->device_type == GS_DEVICE_DIRECT3D_11
 			? "/shaders/gaussian_1d.effect"

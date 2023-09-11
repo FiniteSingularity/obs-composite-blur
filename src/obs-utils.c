@@ -45,6 +45,24 @@ bool add_source_to_list(void *data, obs_source_t *source)
 	return true;
 }
 
+void texrender_set_texture(gs_texture_t *source, gs_texrender_t *dest)
+{
+	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+
+	uint32_t w = gs_texture_get_width(source);
+	uint32_t h = gs_texture_get_height(source);
+
+	gs_eparam_t *image = gs_effect_get_param_by_name(pass_through, "image");
+	gs_effect_set_texture(image, source);
+
+	if (gs_texrender_begin(dest, w, h)) {
+		gs_ortho(0.0f, (float)w, 0.0f, (float)h, -100.0f, 100.0f);
+		while (gs_effect_loop(pass_through, "Draw"))
+			gs_draw_sprite(source, 0, w, h);
+		gs_texrender_end(dest);
+	}
+}
+
 // Loads the shader file at `effect_file_path` into *effect
 gs_effect_t *load_shader_effect(gs_effect_t *effect,
 				const char *effect_file_path)
