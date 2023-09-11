@@ -213,6 +213,8 @@ struct composite_blur_filter_data {
 	uint32_t width;
 	uint32_t height;
 
+	uint32_t device_type;
+
 	// Callback Functions
 	void (*video_render)(composite_blur_filter_data_t *filter);
 	void (*load_effect)(composite_blur_filter_data_t *filter);
