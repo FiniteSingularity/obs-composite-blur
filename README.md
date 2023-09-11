@@ -138,6 +138,9 @@ All of the same options as [Source](#source), but allows you to select an image 
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/WonderWez"><img src="https://avatars.githubusercontent.com/u/144557600?v=4?s=100" width="100px;" alt="WonderWez"/><br /><sub><b>WonderWez</b></sub></a><br /><a href="#bug-WonderWez" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/ASchneiderBR"><img src="https://avatars.githubusercontent.com/u/25224882?v=4?s=100" width="100px;" alt="Antonio Schneider"/><br /><sub><b>Antonio Schneider</b></sub></a><br /><a href="#bug-ASchneiderBR" title="Bug reports">🐛</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/LividJava"><img src="https://avatars.githubusercontent.com/u/7604544?v=4?s=100" width="100px;" alt="LividJava"/><br /><sub><b>LividJava</b></sub></a><br /><a href="#bug-LividJava" title="Bug reports">🐛</a></td>
+    </tr>
   </tbody>
 </table>
 
