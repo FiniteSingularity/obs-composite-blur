@@ -136,6 +136,7 @@ All of the same options as [Source](#source), but allows you to select an image 
       <td align="center" valign="top" width="14.28%"><a href="https://www.youtube.com/andilippi"><img src="https://avatars.githubusercontent.com/u/64610623?v=4?s=100" width="100px;" alt="Andi Stone"/><br /><sub><b>Andi Stone</b></sub></a><br /><a href="#bug-andilippi" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://home.dnaka91.rocks"><img src="https://avatars.githubusercontent.com/u/36804488?v=4?s=100" width="100px;" alt="Dominik Nakamura"/><br /><sub><b>Dominik Nakamura</b></sub></a><br /><a href="#doc-dnaka91" title="Documentation">📖</a> <a href="#platform-dnaka91" title="Packaging/porting to new platform">📦</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/WonderWez"><img src="https://avatars.githubusercontent.com/u/144557600?v=4?s=100" width="100px;" alt="WonderWez"/><br /><sub><b>WonderWez</b></sub></a><br /><a href="#bug-WonderWez" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ASchneiderBR"><img src="https://avatars.githubusercontent.com/u/25224882?v=4?s=100" width="100px;" alt="Antonio Schneider"/><br /><sub><b>Antonio Schneider</b></sub></a><br /><a href="#bug-ASchneiderBR" title="Bug reports">🐛</a></td>
     </tr>
   </tbody>
 </table>
