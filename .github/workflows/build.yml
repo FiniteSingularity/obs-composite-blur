@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths-ignore:
       - 'docs/**'
+      - '.all-contributorsrc'
+      - 'data/locale/**
       - 'README.md'
       - 'LICENSE'
   pull_request:
