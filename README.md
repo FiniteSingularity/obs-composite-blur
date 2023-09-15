@@ -140,6 +140,7 @@ All of the same options as [Source](#source), but allows you to select an image 
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/LividJava"><img src="https://avatars.githubusercontent.com/u/7604544?v=4?s=100" width="100px;" alt="LividJava"/><br /><sub><b>LividJava</b></sub></a><br /><a href="#bug-LividJava" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/COOLIGUAY"><img src="https://avatars.githubusercontent.com/u/55640387?v=4?s=100" width="100px;" alt="Monsteer"/><br /><sub><b>Monsteer</b></sub></a><br /><a href="#translation-COOLIGUAY" title="Translation">🌍</a> <a href="#bug-COOLIGUAY" title="Bug reports">🐛</a></td>
     </tr>
   </tbody>
 </table>
