@@ -81,6 +81,16 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "COOLIGUAY",
+      "name": "Monsteer",
+      "avatar_url": "https://avatars.githubusercontent.com/u/55640387?v=4",
+      "profile": "https://github.com/COOLIGUAY",
+      "contributions": [
+        "translation",
+        "bug"
+      ]
     }
   ]
 }
