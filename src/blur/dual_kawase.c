@@ -131,10 +131,9 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 {
 	gs_texture_t *texture = gs_texrender_get_texture(data->input_texrender);
 	if (data->kawase_passes <= 1) {
-		// TODO- COPY INPUT TO OUTPUT TO PRESERVE INPUT.
-		gs_texrender_t *tmp = data->input_texrender;
-		data->input_texrender = data->output_texrender;
-		data->output_texrender = tmp;
+		data->output_texrender =
+			create_or_reset_texrender(data->output_texrender);
+		texrender_set_texture(texture, data->output_texrender);
 		return;
 	}
 	gs_effect_t *effect_up = data->effect;

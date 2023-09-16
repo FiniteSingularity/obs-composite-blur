@@ -6,6 +6,8 @@
 #include "../obs-composite-blur-filter.h"
 #include "gaussian-kernel.h"
 
+#define MIN_GAUSSIAN_BLUR_RADIUS 0.01f
+
 extern void set_gaussian_blur_types(obs_properties_t *props);
 extern void gaussian_setup_callbacks(composite_blur_filter_data_t *data);
 extern void render_video_gaussian(composite_blur_filter_data_t *data);

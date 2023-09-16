@@ -47,6 +47,13 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
+	if (data->radius < MIN_PIXELATE_BLUR_SIZE) {
+		data->output_texrender =
+			create_or_reset_texrender(data->output_texrender);
+		texrender_set_texture(texture, data->output_texrender);
+		return;
+	}
+
 	texture = blend_composite(texture, data);
 
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");

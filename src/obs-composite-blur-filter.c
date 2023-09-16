@@ -506,8 +506,8 @@ static void apply_effect_mask_source(composite_blur_filter_data_t *filter)
 
 		// Set up a tex renderer for source
 		source_render = gs_texrender_create(format, GS_ZS_NONE);
-		uint32_t base_width = obs_source_get_base_width(source);
-		uint32_t base_height = obs_source_get_base_height(source);
+		uint32_t base_width = obs_source_get_width(source);
+		uint32_t base_height = obs_source_get_height(source);
 		gs_blend_state_push();
 		gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
 		if (gs_texrender_begin_with_color_space(
@@ -925,7 +925,7 @@ static obs_properties_t *composite_blur_properties(void *data)
 
 	obs_properties_add_int_slider(
 		props, "kawase_passes",
-		obs_module_text("CompositeBlurFilter.DualKawase.Passes"), 1,
+		obs_module_text("CompositeBlurFilter.DualKawase.Passes"), 0,
 		1025, 1);
 
 	obs_properties_add_float_slider(
