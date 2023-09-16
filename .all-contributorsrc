@@ -91,6 +91,15 @@
         "translation",
         "bug"
       ]
+    },
+    {
+      "login": "JDDoesDev",
+      "name": "J.D. Flynn",
+      "avatar_url": "https://avatars.githubusercontent.com/u/9932557?v=4",
+      "profile": "https://www.jamesdflynn.com",
+      "contributions": [
+        "bug"
+      ]
     }
   ]
 }
