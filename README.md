@@ -38,6 +38,26 @@ Composite Blur Plugin is a comprehensive blur plugin that provides blur algorith
 
 Go to the [Releases Page](https://github.com/FiniteSingularity/obs-composite-blur/releases), click `Assets` under the latest release, and select either the Windows, MacOS, or Linux installer. Download the file, and run it, to install for your copy of OBS.
 
+### For Ubuntu
+
+#### With GUI
+
+- Download the Ubuntu .tar.gz for your Ubuntu version (currently 20.04 and 22.04 are supported)
+- Extract the .tar.gz to a handy location.
+- Using your file manager, navigate to `~/.config/obs-studio/plugins`
+- Drop the `obs-composite-blur` folder into the plugins directory.
+- (Re)start OBS and now you should be able to add the Blur filter.
+
+#### With Terminal
+
+(Replace XX with either 20 or 22 for Ubuntus 20.04 & 22.04)
+```bash
+wget https://github.com/FiniteSingularity/obs-composite-blur/releases/download/v1.0.2/obs-composite-blur-1.0.2-ubuntu-XX.04.tar.gz.zip
+unzip obs-composite-blur-1.0.2-ubuntu-XX.04.tar.gz.zip
+tar -zxf obs-composite-blur-(DATE)-(HASH)-ubuntu-XX.04.tar.gz
+mv obs-composite-blur ~/.config/obs-studio/plugins
+```
+
 ### From AUR
 
 Arch Linux users can install obs-composite-blur from the [AUR](https://aur.archlinux.org/) using an [AUR helper](https://wiki.archlinux.org/title/AUR_helpers). For example:
