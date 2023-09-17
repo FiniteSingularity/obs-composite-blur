@@ -100,6 +100,15 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "SketchNI",
+      "name": "Denver F",
+      "avatar_url": "https://avatars.githubusercontent.com/u/11874768?v=4",
+      "profile": "https://sketchni.uk",
+      "contributions": [
+        "doc"
+      ]
     }
   ]
 }
