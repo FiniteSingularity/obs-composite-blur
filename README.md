@@ -55,6 +55,7 @@ Go to the [Releases Page](https://github.com/FiniteSingularity/obs-composite-blu
 wget https://github.com/FiniteSingularity/obs-composite-blur/releases/download/v1.0.2/obs-composite-blur-1.0.2-ubuntu-XX.04.tar.gz.zip
 unzip obs-composite-blur-1.0.2-ubuntu-XX.04.tar.gz.zip
 tar -zxf obs-composite-blur-(DATE)-(HASH)-ubuntu-XX.04.tar.gz
+mkdir ~/.config/obs-studio/plugins
 mv obs-composite-blur ~/.config/obs-studio/plugins
 ```
 
