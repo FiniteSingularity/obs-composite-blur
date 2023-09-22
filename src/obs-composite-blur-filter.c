@@ -396,10 +396,8 @@ static void get_input_source(composite_blur_filter_data_t *filter)
 			       filter->height)) {
 
 		set_blending_parameters();
-
 		gs_ortho(0.0f, (float)filter->width, 0.0f,
 			 (float)filter->height, -100.0f, 100.0f);
-
 		obs_source_process_filter_end(filter->context, pass_through,
 					      filter->width, filter->height);
 		gs_texrender_end(filter->input_texrender);

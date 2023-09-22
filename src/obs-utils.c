@@ -54,13 +54,14 @@ void texrender_set_texture(gs_texture_t *source, gs_texrender_t *dest)
 
 	gs_eparam_t *image = gs_effect_get_param_by_name(pass_through, "image");
 	gs_effect_set_texture(image, source);
-
+	set_blending_parameters();
 	if (gs_texrender_begin(dest, w, h)) {
 		gs_ortho(0.0f, (float)w, 0.0f, (float)h, -100.0f, 100.0f);
 		while (gs_effect_loop(pass_through, "Draw"))
 			gs_draw_sprite(source, 0, w, h);
 		gs_texrender_end(dest);
 	}
+	gs_blend_state_pop();
 }
 
 // Loads the shader file at `effect_file_path` into *effect
