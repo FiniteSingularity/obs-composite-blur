@@ -165,6 +165,7 @@ All of the same options as [Source](#source), but allows you to select an image 
       <td align="center" valign="top" width="14.28%"><a href="https://www.jamesdflynn.com"><img src="https://avatars.githubusercontent.com/u/9932557?v=4?s=100" width="100px;" alt="J.D. Flynn"/><br /><sub><b>J.D. Flynn</b></sub></a><br /><a href="#bug-JDDoesDev" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://sketchni.uk"><img src="https://avatars.githubusercontent.com/u/11874768?v=4?s=100" width="100px;" alt="Denver F"/><br /><sub><b>Denver F</b></sub></a><br /><a href="#doc-SketchNI" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://sbruchmann.dev"><img src="https://avatars.githubusercontent.com/u/28243831?v=4?s=100" width="100px;" alt="Steffen Bruchmann"/><br /><sub><b>Steffen Bruchmann</b></sub></a><br /><a href="#translation-bruchmann" title="Translation">🌍</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://sekoodi.com"><img src="https://avatars.githubusercontent.com/u/128088919?v=4?s=100" width="100px;" alt="sesamiam"/><br /><sub><b>sesamiam</b></sub></a><br /><a href="#translation-sesamiam" title="Translation">🌍</a></td>
     </tr>
   </tbody>
 </table>
