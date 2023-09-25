@@ -427,7 +427,7 @@ static void composite_blur_video_render(void *data, gs_effect_t *effect)
 		return;
 	}
 
-	if (filter->rendering) {
+	if (filter->rendering || filter->width == 0 || filter->height == 0) {
 		obs_source_skip_video_filter(filter->context);
 		return;
 	}
@@ -539,6 +539,7 @@ static void apply_effect_mask_source(composite_blur_filter_data_t *filter)
 		gs_texrender_get_texture(filter->render);
 
 	if (!effect || !texture || !filtered_texture) {
+		gs_texrender_destroy(source_render);
 		return;
 	}
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
