@@ -84,7 +84,7 @@ Box blur works similar to Gaussian, but uses an equally weighted sample of surro
 
 ### Dual Kawase (Dual Filter)
 
-Dual Kawase is a blurring algorithm that uses down and upsampling in order to blur the image. It has a high quality blur with little artifacting and is computationally efficient especially at larger blur values. The naieve implementation of Dual Kawase however has very large jumps in blur- essentially doubling the blur at each step. This implementation sacrafices a small amount of efficiency, but allows intermediate blur values by using linear interpolation during the final downsamping step. This gives a continuous change in blur values. The most common use for Dual Kawase is when you need a very high blur radius, but with the linear interpolation step this implementation has, it can also be used as a general blur. Due to how the algorithm works, only [Area](#area) blur is available.
+Dual Kawase is a blurring algorithm that uses down and upsampling in order to blur the image. It has a high quality blur with little artifacting and is computationally efficient especially at larger blur values. The naive implementation of Dual Kawase however has very large jumps in blur- essentially doubling the blur at each step. This implementation sacrifices a small amount of efficiency, but allows intermediate blur values by using linear interpolation during the final downsamping step. This gives a continuous change in blur values. The most common use for Dual Kawase is when you need a very high blur radius, but with the linear interpolation step this implementation has, it can also be used as a general blur. Due to how the algorithm works, only [Area](#area) blur is available.
 
 ### Pixelate
 
@@ -110,7 +110,7 @@ Zoom blur is applied away from a center zoom point, and increases the further fr
 ![Zoom Blur Example](.github/assets/zoom-blur.png)
 
 ### Tilt-Shift
-Tilt-Shift blur defines an in-focus plane, specified by a location in the frame, and a thickness. All pixels outside of the in-focus plane have their blur value increased the further away from the plane they are. The resulting image gives a distorted sense of scale, making large objects look like mineature models. When applied to video scenes like a city street, the effect can be significant. Adjustable inputs are blur radius, focus plane angle, focus plane location, and focus plane thickness.
+Tilt-Shift blur defines an in-focus plane, specified by a location in the frame, and a thickness. All pixels outside of the in-focus plane have their blur value increased the further away from the plane they are. The resulting image gives a distorted sense of scale, making large objects look like miniature models. When applied to video scenes like a city street, the effect can be significant. Adjustable inputs are blur radius, focus plane angle, focus plane location, and focus plane thickness.
 ![Tilt Shift Blur Example](.github/assets/tilt-shift-blur.png)
 
 ## Composite Background
