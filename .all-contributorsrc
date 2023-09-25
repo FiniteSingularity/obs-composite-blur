@@ -127,6 +127,15 @@
       "contributions": [
         "translation"
       ]
+    },
+    {
+      "login": "Poodmund",
+      "name": "Poodmund",
+      "avatar_url": "https://avatars.githubusercontent.com/u/10106634?v=4",
+      "profile": "https://github.com/Poodmund",
+      "contributions": [
+        "bug"
+      ]
     }
   ]
 }
