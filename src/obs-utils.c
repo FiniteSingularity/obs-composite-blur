@@ -41,7 +41,12 @@ bool add_source_to_list(void *data, obs_source_t *source)
 {
 	obs_property_t *p = data;
 	const char *name = obs_source_get_name(source);
-	obs_property_list_add_string(p, name, name);
+	size_t count = obs_property_list_item_count(p);
+	size_t idx = 0;
+	while (idx < count &&
+	       strcmp(name, obs_property_list_item_string(p, idx)) > 0)
+		idx++;
+	obs_property_list_insert_string(p, idx, name, name);
 	return true;
 }
 

@@ -29,11 +29,14 @@ static const char *composite_blur_name(void *unused)
 static void composite_blur_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_double(settings, "radius", 10.0);
-	obs_data_set_default_string(settings, "background", obs_module_text("CompositeBlurFilter.Background.None"));
+	obs_data_set_default_string(
+		settings, "background",
+		obs_module_text("CompositeBlurFilter.Background.None"));
 	obs_data_set_default_int(settings, "passes", 1);
 	obs_data_set_default_int(settings, "kawase_passes", 10);
-	obs_data_set_default_string(settings, "effect_mask_source_source",
-				    obs_module_text("CompositeBlurFilter.EffectMask.Source.None"));
+	obs_data_set_default_string(
+		settings, "effect_mask_source_source",
+		obs_module_text("CompositeBlurFilter.EffectMask.Source.None"));
 	obs_data_set_default_double(
 		settings, "effect_mask_source_filter_multiplier", 1.0);
 	obs_data_set_default_double(settings, "effect_mask_circle_center_x",
@@ -919,8 +922,8 @@ static obs_properties_t *composite_blur_properties(void *data)
 		0.0, 80.1, 0.1);
 
 	obs_properties_add_int_slider(
-		props, "passes", obs_module_text("CompositeBlurFilter.Box.Passes"),
-		1, 5, 1);
+		props, "passes",
+		obs_module_text("CompositeBlurFilter.Box.Passes"), 1, 5, 1);
 
 	obs_properties_add_int_slider(
 		props, "kawase_passes",
@@ -971,9 +974,11 @@ static obs_properties_t *composite_blur_properties(void *data)
 		props, "background",
 		obs_module_text("CompositeBlurFilter.Background"),
 		OBS_COMBO_TYPE_EDITABLE, OBS_COMBO_FORMAT_STRING);
-	obs_property_list_add_string(p, obs_module_text("CompositeBlurFilter.Background.None"), "");
 	obs_enum_sources(add_source_to_list, p);
 	obs_enum_scenes(add_source_to_list, p);
+	obs_property_list_insert_string(
+		p, 0, obs_module_text("CompositeBlurFilter.Background.None"),
+		"");
 
 	obs_property_t *effect_mask_list = obs_properties_add_list(
 		props, "effect_mask",
@@ -1095,9 +1100,12 @@ static obs_properties_t *composite_blur_properties(void *data)
 		effect_mask_source, "effect_mask_source_source",
 		obs_module_text("CompositeBlurFilter.EffectMask.Source.Source"),
 		OBS_COMBO_TYPE_EDITABLE, OBS_COMBO_FORMAT_STRING);
-	obs_property_list_add_string(effect_mask_source_source, obs_module_text("CompositeBlurFilter.EffectMask.Source.None"), "");
 	obs_enum_sources(add_source_to_list, effect_mask_source_source);
 	obs_enum_scenes(add_source_to_list, effect_mask_source_source);
+	obs_property_list_insert_string(
+		effect_mask_source_source, 0,
+		obs_module_text("CompositeBlurFilter.EffectMask.Source.None"),
+		"");
 
 	obs_property_t *effect_mask_source_filter_list = obs_properties_add_list(
 		effect_mask_source, "effect_mask_source_filter_list",
