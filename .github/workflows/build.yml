@@ -271,8 +271,9 @@ jobs:
         with:
           name: "installer-files"
           path: installer/*
-  windows-package:
-    name: "Windows Package"
+  windows-package-unsigned:
+    name: "Windows Package Unsigned"
+    if: false && github.event_name == 'pull_request'
     runs-on: [windows-latest]
     needs: [windows-build]
     steps:
@@ -287,6 +288,10 @@ jobs:
           echo "FILE_NAME_X86=${env:FILE_NAME_X86}" >> ${env:GITHUB_ENV}
           $env:FILE_NAME_X64="${{ env.PLUGIN_NAME }}-${{ github.sha }}-windows-x64"
           echo "FILE_NAME_X64=${env:FILE_NAME_X64}" >> ${env:GITHUB_ENV}
+      - name: Setup Secrets
+        run: |
+          Write-Output "Setting up signing pin- ::add-mask::${{ secrets.SIGNING_KEY_PIN }}"
+          Write-Output "Setting up signing org- ${{ secrets.SIGNING_ORG }}"
       - name: Retrieve x86 build
         uses: actions/download-artifact@v3.0.1
         with:
@@ -302,37 +307,15 @@ jobs:
         with:
           name: "installer-files"
           path: .
-      - name: Create Code Signing Certificate
-        if: false && github.event_name != 'pull_request'
-        run: |
-          New-Item -ItemType directory -Path certificate
-          Set-Content -Path certificate\certificate.txt -Value '${{ secrets.CERTIFICATE }}'
-          certutil -decode certificate\certificate.txt certificate\certificate.pfx
-      - name: Code Sign 32
-        if: false && github.event_name != 'pull_request'
-        run: |
-          & 'C:/Program Files (x86)/Windows Kits/10/bin/10.0.20348.0/x86/signtool.exe' sign /f certificate\certificate.pfx /p '${{ secrets.CERTIFICATE_PASS }}' /t http://timestamp.comodoca.com/authenticode .\package\obs-plugins\32bit\${{ env.PLUGIN_NAME }}.dll
-      - name: Code Sign 64
-        if: false && github.event_name != 'pull_request'
-        run: |
-          & 'C:/Program Files (x86)/Windows Kits/10/bin/10.0.20348.0/x64/signtool.exe' sign /f certificate\certificate.pfx /p '${{ secrets.CERTIFICATE_PASS }}' /t http://timestamp.comodoca.com/authenticode .\package\obs-plugins\64bit\${{ env.PLUGIN_NAME }}.dll
       - name: Publish zip
         if: success()
         uses: actions/upload-artifact@v3.1.1
         with:
           name: "${{ env.FILE_NAME }}"
           path: package/*
-      - name: "Package Installer (Prereqs)"
-        run: |
-          curl "-kL" "https://files.jrsoftware.org/is/6/innosetup-6.0.3.exe" "-f" "--retry" "5" "-o" "inno.exe"
-          .\inno.exe /VERYSILENT /SP- /SUPPRESSMSGBOXES /NORESTART
       - name: "Package Installer (Compile)"
         run: |
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /Qp ".\installer.iss"
-      - name: Code Sign Installer
-        if: false && github.event_name != 'pull_request'
-        run: |
-          & 'C:/Program Files (x86)/Windows Kits/10/bin/10.0.20348.0/x64/signtool.exe' sign /f certificate\certificate.pfx /p '${{ secrets.CERTIFICATE_PASS }}' /t http://timestamp.comodoca.com/authenticode .\package\${{ env.PLUGIN_NAME }}-installer.exe
       - name: Publish installer
         if: success()
         uses: actions/upload-artifact@v3.1.1
@@ -343,3 +326,81 @@ jobs:
         uses: geekyeggo/delete-artifact@v2.0.0
         with:
           name: "${{ env.FILE_NAME_X86 }}\n${{ env.FILE_NAME_X64 }}\ninstaller-files"
+
+  windows-package-signed:
+    name: "Windows Package Signed"
+    if: true || github.event_name == 'push'
+    runs-on: [self-hosted]
+    needs: [windows-build]
+    steps:
+      - name: Init
+        if: success()
+        run: |
+          mkdir ./package
+          $env:FILE_DATE=(Get-Date -UFormat "%F")
+          $env:FILE_NAME="${{ env.PLUGIN_NAME }}-${env:FILE_DATE}-${{ github.sha }}-windows"
+          echo "FILE_NAME=${env:FILE_NAME}" >> ${env:GITHUB_ENV}
+          $env:FILE_NAME_X86="${{ env.PLUGIN_NAME }}-${{ github.sha }}-windows-x86"
+          echo "FILE_NAME_X86=${env:FILE_NAME_X86}" >> ${env:GITHUB_ENV}
+          $env:FILE_NAME_X64="${{ env.PLUGIN_NAME }}-${{ github.sha }}-windows-x64"
+          echo "FILE_NAME_X64=${env:FILE_NAME_X64}" >> ${env:GITHUB_ENV}
+      - name: Setup Secrets
+        run: |
+          Write-Output "Setting up signing pin- ::add-mask::${{ secrets.SIGNING_KEY_PIN }}"
+          Write-Output "Setting up signing org- ${{ secrets.SIGNING_ORG }}"
+      - name: Retrieve x86 build
+        uses: actions/download-artifact@v3.0.1
+        with:
+          name: "${{ env.FILE_NAME_X86 }}"
+          path: ./package
+      - name: Retrieve x64 build
+        uses: actions/download-artifact@v3.0.1
+        with:
+          name: "${{ env.FILE_NAME_X64 }}"
+          path: ./package
+      - name: Get ScSignTool
+        run: |
+          curl "-kL" "https://www.mgtek.com/files/smartcardtools.zip" "-f" "--retry" "5" "-o" "smartcardtools.zip"
+          7z x smartcardtools.zip -o"./smartcardtools"
+      - name: Retrieve installer files
+        uses: actions/download-artifact@v3.0.1
+        with:
+          name: "installer-files"
+          path: .
+      - name: Code Sign 32
+        if: success()
+        run: |
+          &  '.\smartcardtools\x86\ScSignTool.exe' -pin ${{ secrets.SIGNING_KEY_PIN }} sign /fd sha256 /tr http://ts.ssl.com /td sha256 /n '${{ secrets.SIGNING_ORG }}' .\package\obs-plugins\32bit\${{ env.PLUGIN_NAME }}.dll
+      - name: Code Sign 64
+        if: success()
+        run: |
+          & '.\smartcardtools\x86\ScSignTool.exe' -pin ${{ secrets.SIGNING_KEY_PIN }} sign /fd sha256 /tr http://ts.ssl.com /td sha256 /n '${{ secrets.SIGNING_ORG }}' .\package\obs-plugins\64bit\${{ env.PLUGIN_NAME }}.dll
+      - name: Publish zip
+        if: success()
+        uses: actions/upload-artifact@v3.1.1
+        with:
+          name: "${{ env.FILE_NAME }}"
+          path: package/*
+      - name: "Package Installer (Prereqs)"
+        run: |
+          curl "-kL" "https://github.com/Xaymar/msvc-redist-helper/releases/download/0.1/msvc-redist-helper-64.exe" "-f" "--retry" "5" "-o" "msvc-redist-helper.exe"
+      - name: "Package Installer (Compile)"
+        run: |
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /Qp ".\installer.iss"
+      - name: Code Sign Installer
+        if: success()
+        run: |
+          & '.\smartcardtools\x86\ScSignTool.exe' -pin ${{ secrets.SIGNING_KEY_PIN }} sign /fd sha256 /tr http://ts.ssl.com /td sha256 /n '${{ secrets.SIGNING_ORG }}' .\package\${{ env.PLUGIN_NAME }}-installer.exe
+      - name: Publish installer
+        if: success()
+        uses: actions/upload-artifact@v3.1.1
+        with:
+          name: "${{ env.FILE_NAME }}-installer"
+          path: package/*.exe
+      - name: Remove temp artifacts
+        uses: geekyeggo/delete-artifact@v2.0.0
+        with:
+          name: "${{ env.FILE_NAME_X86 }}\n${{ env.FILE_NAME_X64 }}\ninstaller-files"
+      - name: Cleanup
+        if: ${{ always() }}
+        run: rm -Recurse -Force ./*
