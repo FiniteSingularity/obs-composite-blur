@@ -273,7 +273,7 @@ jobs:
           path: installer/*
   windows-package-unsigned:
     name: "Windows Package Unsigned"
-    if: false && github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request'
     runs-on: [windows-latest]
     needs: [windows-build]
     steps:
@@ -329,7 +329,7 @@ jobs:
 
   windows-package-signed:
     name: "Windows Package Signed"
-    if: true || github.event_name == 'push'
+    if: github.event_name == 'push'
     runs-on: [self-hosted]
     needs: [windows-build]
     steps:
