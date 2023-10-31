@@ -180,14 +180,19 @@ static void composite_blur_destroy(void *data)
 	if (filter->output_texrender) {
 		gs_texrender_destroy(filter->output_texrender);
 	}
+	if (filter->composite_render) {
+		gs_texrender_destroy(filter->composite_render);
+	}
 
 	if (filter->kernel_texture) {
 		gs_texture_destroy(filter->kernel_texture);
 	}
-
 	if (filter->mask_image) {
 		gs_image_file_free(filter->mask_image);
 	}
+
+	da_free(filter->offset);
+	da_free(filter->kernel);
 
 	obs_leave_graphics();
 	bfree(filter);
@@ -1529,6 +1534,7 @@ static void load_composite_effect(composite_blur_filter_data_t *filter)
 	dstr_cat(&filename, obs_get_module_data_path(obs_current_module()));
 	dstr_cat(&filename, "/shaders/composite.effect");
 	shader_text = load_shader_from_file(filename.array);
+	dstr_free(&filename);
 	char *errors = NULL;
 
 	obs_enter_graphics();
@@ -1573,6 +1579,7 @@ static void load_crop_mask_effect(composite_blur_filter_data_t *filter)
 	dstr_cat(&filename, "/shaders/effect_mask_crop.effect");
 	shader_text = load_shader_from_file(filename.array);
 	char *errors = NULL;
+	dstr_free(&filename);
 
 	obs_enter_graphics();
 	filter->effect_mask_effect =
@@ -1630,6 +1637,7 @@ static void load_source_mask_effect(composite_blur_filter_data_t *filter)
 	dstr_cat(&filename, "/shaders/effect_mask_source.effect");
 	shader_text = load_shader_from_file(filename.array);
 	char *errors = NULL;
+	dstr_free(&filename);
 
 	obs_enter_graphics();
 	filter->effect_mask_effect =
@@ -1682,6 +1690,7 @@ static void load_circle_mask_effect(composite_blur_filter_data_t *filter)
 	dstr_cat(&filename, "/shaders/effect_mask_circle.effect");
 	shader_text = load_shader_from_file(filename.array);
 	char *errors = NULL;
+	dstr_free(&filename);
 
 	obs_enter_graphics();
 	filter->effect_mask_effect =
@@ -1736,6 +1745,7 @@ static void load_mix_effect(composite_blur_filter_data_t *filter)
 	dstr_cat(&filename, "/shaders/mix.effect");
 	shader_text = load_shader_from_file(filename.array);
 	char *errors = NULL;
+	dstr_free(&filename);
 
 	obs_enter_graphics();
 	filter->mix_effect = gs_effect_create(shader_text, NULL, &errors);

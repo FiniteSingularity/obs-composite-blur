@@ -644,4 +644,7 @@ static void sample_kernel(float radius, composite_blur_filter_data_t *filter)
 		blog(LOG_WARNING, "Gaussian Texture couldn't be created.");
 	}
 	obs_leave_graphics();
+	da_free(d_weights);
+	da_free(d_offsets);
+	da_free(weight_offset_texture);
 }
