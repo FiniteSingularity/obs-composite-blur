@@ -149,7 +149,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 
 static void composite_blur_destroy(void *data)
 {
-	struct composite_blur_filter_data *filter = data;
+	composite_blur_filter_data_t *filter = data;
 
 	obs_enter_graphics();
 	if (filter->effect) {
@@ -180,14 +180,28 @@ static void composite_blur_destroy(void *data)
 	if (filter->output_texrender) {
 		gs_texrender_destroy(filter->output_texrender);
 	}
+	if (filter->composite_render) {
+		gs_texrender_destroy(filter->composite_render);
+	}
 
 	if (filter->kernel_texture) {
 		gs_texture_destroy(filter->kernel_texture);
 	}
-
 	if (filter->mask_image) {
 		gs_image_file_free(filter->mask_image);
+		bfree(filter->mask_image);
 	}
+
+	if (filter->background) {
+		obs_weak_source_release(filter->background);
+	}
+
+	if (filter->mask_source_source) {
+		obs_weak_source_release(filter->mask_source_source);
+	}
+
+	da_free(filter->offset);
+	da_free(filter->kernel);
 
 	obs_leave_graphics();
 	bfree(filter);
@@ -856,7 +870,7 @@ static void apply_effect_mask_circle(composite_blur_filter_data_t *filter)
 
 static obs_properties_t *composite_blur_properties(void *data)
 {
-	struct composite_blur_filter_data *filter = data;
+	composite_blur_filter_data_t *filter = data;
 
 	obs_properties_t *props = obs_properties_create();
 	obs_properties_set_param(props, filter, NULL);
@@ -1529,6 +1543,7 @@ static void load_composite_effect(composite_blur_filter_data_t *filter)
 	dstr_cat(&filename, obs_get_module_data_path(obs_current_module()));
 	dstr_cat(&filename, "/shaders/composite.effect");
 	shader_text = load_shader_from_file(filename.array);
+	dstr_free(&filename);
 	char *errors = NULL;
 
 	obs_enter_graphics();
@@ -1573,6 +1588,7 @@ static void load_crop_mask_effect(composite_blur_filter_data_t *filter)
 	dstr_cat(&filename, "/shaders/effect_mask_crop.effect");
 	shader_text = load_shader_from_file(filename.array);
 	char *errors = NULL;
+	dstr_free(&filename);
 
 	obs_enter_graphics();
 	filter->effect_mask_effect =
@@ -1630,6 +1646,7 @@ static void load_source_mask_effect(composite_blur_filter_data_t *filter)
 	dstr_cat(&filename, "/shaders/effect_mask_source.effect");
 	shader_text = load_shader_from_file(filename.array);
 	char *errors = NULL;
+	dstr_free(&filename);
 
 	obs_enter_graphics();
 	filter->effect_mask_effect =
@@ -1682,6 +1699,7 @@ static void load_circle_mask_effect(composite_blur_filter_data_t *filter)
 	dstr_cat(&filename, "/shaders/effect_mask_circle.effect");
 	shader_text = load_shader_from_file(filename.array);
 	char *errors = NULL;
+	dstr_free(&filename);
 
 	obs_enter_graphics();
 	filter->effect_mask_effect =
@@ -1736,6 +1754,7 @@ static void load_mix_effect(composite_blur_filter_data_t *filter)
 	dstr_cat(&filename, "/shaders/mix.effect");
 	shader_text = load_shader_from_file(filename.array);
 	char *errors = NULL;
+	dstr_free(&filename);
 
 	obs_enter_graphics();
 	filter->mix_effect = gs_effect_create(shader_text, NULL, &errors);
@@ -1762,7 +1781,7 @@ static void load_mix_effect(composite_blur_filter_data_t *filter)
 }
 
 gs_texture_t *blend_composite(gs_texture_t *texture,
-			      struct composite_blur_filter_data *data)
+			      composite_blur_filter_data_t *data)
 {
 	// Get source
 	obs_source_t *source =
