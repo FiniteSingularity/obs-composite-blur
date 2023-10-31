@@ -189,6 +189,7 @@ static void composite_blur_destroy(void *data)
 	}
 	if (filter->mask_image) {
 		gs_image_file_free(filter->mask_image);
+		bfree(filter->mask_image);
 	}
 
 	if (filter->background) {
@@ -869,7 +870,7 @@ static void apply_effect_mask_circle(composite_blur_filter_data_t *filter)
 
 static obs_properties_t *composite_blur_properties(void *data)
 {
-	struct composite_blur_filter_data *filter = data;
+	composite_blur_filter_data_t *filter = data;
 
 	obs_properties_t *props = obs_properties_create();
 	obs_properties_set_param(props, filter, NULL);
