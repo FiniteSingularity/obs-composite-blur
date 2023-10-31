@@ -149,7 +149,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 
 static void composite_blur_destroy(void *data)
 {
-	struct composite_blur_filter_data *filter = data;
+	composite_blur_filter_data_t *filter = data;
 
 	obs_enter_graphics();
 	if (filter->effect) {
@@ -189,6 +189,14 @@ static void composite_blur_destroy(void *data)
 	}
 	if (filter->mask_image) {
 		gs_image_file_free(filter->mask_image);
+	}
+
+	if (filter->background) {
+		obs_weak_source_release(filter->background);
+	}
+
+	if (filter->mask_source_source) {
+		obs_weak_source_release(filter->mask_source_source);
 	}
 
 	da_free(filter->offset);
@@ -1772,7 +1780,7 @@ static void load_mix_effect(composite_blur_filter_data_t *filter)
 }
 
 gs_texture_t *blend_composite(gs_texture_t *texture,
-			      struct composite_blur_filter_data *data)
+			      composite_blur_filter_data_t *data)
 {
 	// Get source
 	obs_source_t *source =
