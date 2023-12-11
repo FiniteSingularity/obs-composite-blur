@@ -135,6 +135,8 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->mask_source_source = NULL;
 	filter->mask_source_invert = false;
 
+	filter->param_output_image = NULL;
+
 	da_init(filter->kernel);
 	//composite_blur_defaults(settings);
 	obs_source_update(source, settings);
@@ -166,6 +168,9 @@ static void composite_blur_destroy(void *data)
 	}
 	if (filter->effect_mask_effect) {
 		gs_effect_destroy(filter->effect_mask_effect);
+	}
+	if (filter->output_effect) {
+		gs_effect_destroy(filter->output_effect);
 	}
 	if (filter->render) {
 		gs_texrender_destroy(filter->render);
@@ -405,10 +410,23 @@ static void get_input_source(composite_blur_filter_data_t *filter)
 {
 	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 
+	const enum gs_color_space preferred_spaces[] = {
+		GS_CS_SRGB,
+		GS_CS_SRGB_16F,
+		GS_CS_709_EXTENDED,
+	};
+
+	const enum gs_color_space source_space = obs_source_get_color_space(
+		obs_filter_get_target(filter->context),
+		OBS_COUNTOF(preferred_spaces), preferred_spaces);
+
+	const enum gs_color_format format = gs_get_format_from_space(source_space);
+
 	filter->input_texrender =
 		create_or_reset_texrender(filter->input_texrender);
-	if (obs_source_process_filter_begin(filter->context, GS_RGBA,
-					    OBS_ALLOW_DIRECT_RENDERING) &&
+	if (obs_source_process_filter_begin_with_color_space(
+		    filter->context, format, source_space,
+					    OBS_NO_DIRECT_RENDERING) &&
 	    gs_texrender_begin(filter->input_texrender, filter->width,
 			       filter->height)) {
 
@@ -424,14 +442,6 @@ static void get_input_source(composite_blur_filter_data_t *filter)
 
 static void draw_output_to_source(composite_blur_filter_data_t *filter)
 {
-	gs_texture_t *texture =
-		gs_texrender_get_texture(filter->output_texrender);
-	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-	gs_eparam_t *param = gs_effect_get_param_by_name(pass_through, "image");
-	gs_effect_set_texture(param, texture);
-	//while (gs_effect_loop(effect, "Draw")) {
-	//	gs_draw_sprite(texture, 0, filter->width, filter->height);
-	//}
 	const enum gs_color_space preferred_spaces[] = {
 		GS_CS_SRGB,
 		GS_CS_SRGB_16F,
@@ -444,17 +454,29 @@ static void draw_output_to_source(composite_blur_filter_data_t *filter)
 
 	const enum gs_color_format format =
 		gs_get_format_from_space(source_space);
-	if (obs_source_process_filter_begin_with_color_space(
-		    filter->context, format, source_space,
-		    OBS_ALLOW_DIRECT_RENDERING)) {
 
-		set_blending_parameters();
-		gs_ortho(0.0f, (float)filter->width, 0.0f,
-			 (float)filter->height, -100.0f, 100.0f);
-		obs_source_process_filter_end(filter->context, pass_through,
-					      filter->width, filter->height);
-		gs_blend_state_pop();
+	if (!obs_source_process_filter_begin_with_color_space(
+		    filter->context, format, source_space,
+		    OBS_NO_DIRECT_RENDERING)) {
+		return;
 	}
+
+	gs_texture_t *texture =
+		gs_texrender_get_texture(filter->output_texrender);
+	gs_effect_t *pass_through = filter->output_effect;
+	if (filter->param_output_image) {
+		gs_effect_set_texture(filter->param_output_image, texture);
+	}
+	
+	gs_blend_state_push();
+	gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+
+	gs_ortho(0.0f, (float)filter->width, 0.0f, (float)filter->height,
+		 -100.0f, 100.0f);
+
+	obs_source_process_filter_end(filter->context, pass_through,
+				      filter->width, filter->height);
+	gs_blend_state_pop();
 }
 
 static void composite_blur_video_render(void *data, gs_effect_t *effect)
@@ -480,12 +502,17 @@ static void composite_blur_video_render(void *data, gs_effect_t *effect)
 		get_input_source(filter);
 
 		// 2. Apply effect to texture, and render texture to video
-		filter->video_render(filter);
+		//filter->video_render(filter);
 
-		if (filter->mask_type != EFFECT_MASK_TYPE_NONE) {
-			// Swap output and render
-			apply_effect_mask(filter);
-		}
+		//if (filter->mask_type != EFFECT_MASK_TYPE_NONE) {
+		//	// Swap output and render
+		//	apply_effect_mask(filter);
+		//}
+
+		gs_texrender_t *tmp = filter->output_texrender;
+		filter->output_texrender = filter->input_texrender;
+		filter->input_texrender = tmp;
+
 
 		// 3. Draw result (filter->output_texrender) to source
 		draw_output_to_source(filter);
@@ -1547,6 +1574,7 @@ static void composite_blur_reload_effect(composite_blur_filter_data_t *filter)
 		filter->load_effect(filter);
 		load_composite_effect(filter);
 		load_mix_effect(filter);
+		load_output_effect(filter);
 	}
 
 	obs_data_release(settings);
@@ -1799,6 +1827,50 @@ static void load_mix_effect(composite_blur_filter_data_t *filter)
 				filter->mix_effect, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
+		}
+	}
+}
+
+static void load_output_effect(composite_blur_filter_data_t *filter)
+{
+	if (filter->output_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->output_effect);
+		filter->output_effect = NULL;
+		obs_leave_graphics();
+	}
+
+	char *shader_text = NULL;
+	struct dstr filename = {0};
+	dstr_cat(&filename, obs_get_module_data_path(obs_current_module()));
+	dstr_cat(&filename, "/shaders/render_output.effect");
+	shader_text = load_shader_from_file(filename.array);
+	char *errors = NULL;
+	dstr_free(&filename);
+
+	obs_enter_graphics();
+	filter->output_effect = gs_effect_create(shader_text, NULL, &errors);
+	obs_leave_graphics();
+
+	bfree(shader_text);
+	if (filter->output_effect == NULL) {
+		blog(LOG_WARNING,
+		     "[obs-composite-blur] Unable to load output.effect file.  Errors:\n%s",
+		     (errors == NULL || strlen(errors) == 0 ? "(None)"
+							    : errors));
+		bfree(errors);
+	} else {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->output_effect);
+		for (size_t effect_index = 0; effect_index < effect_count;
+		     effect_index++) {
+			gs_eparam_t *param = gs_effect_get_param_by_idx(
+				filter->output_effect, effect_index);
+			struct gs_effect_param_info info;
+			gs_effect_get_param_info(param, &info);
+			if (strcmp(info.name, "output_image") == 0) {
+				filter->param_output_image = param;
+			}
 		}
 	}
 }
