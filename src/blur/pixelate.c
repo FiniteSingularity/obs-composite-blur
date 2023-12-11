@@ -71,6 +71,32 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 		gs_effect_set_vec2(data->param_uv_size, &uv_size);
 	}
 
+	if (data->param_pixel_center) {
+		gs_effect_set_vec2(data->param_pixel_center,
+				   &data->pixelate_tessel_center);
+	}
+
+	if (data->param_pixel_cos_theta) {
+		gs_effect_set_float(data->param_pixel_cos_theta,
+				    data->pixelate_cos_theta);
+	}
+
+	if (data->param_pixel_cos_rtheta) {
+		gs_effect_set_float(data->param_pixel_cos_rtheta,
+				    data->pixelate_cos_rtheta);
+	}
+
+	if (data->param_pixel_sin_theta) {
+		gs_effect_set_float(data->param_pixel_sin_theta,
+				    data->pixelate_sin_theta);
+	}
+
+	if (data->param_pixel_sin_rtheta) {
+		gs_effect_set_float(data->param_pixel_sin_rtheta,
+				    data->pixelate_sin_rtheta);
+	}
+
+
 	data->output_texrender =
 		create_or_reset_texrender(data->output_texrender);
 
@@ -104,6 +130,18 @@ static void load_pixelate_square_effect(composite_blur_filter_data_t *filter)
 				filter->param_uv_size = param;
 			} else if (strcmp(info.name, "pixel_size") == 0) {
 				filter->param_pixel_size = param;
+			} else if (strcmp(info.name, "tess_origin") == 0) {
+				filter->param_pixel_center = param;
+			} else if (strcmp(info.name, "tess_rot") == 0) {
+				filter->param_pixel_rot = param;
+			} else if (strcmp(info.name, "cos_theta") == 0) {
+				filter->param_pixel_cos_theta = param;
+			} else if (strcmp(info.name, "sin_theta") == 0) {
+				filter->param_pixel_sin_theta = param;
+			} else if (strcmp(info.name, "cos_rtheta") == 0) {
+				filter->param_pixel_cos_rtheta = param;
+			} else if (strcmp(info.name, "sin_rtheta") == 0) {
+				filter->param_pixel_sin_rtheta = param;
 			}
 		}
 	}
@@ -125,6 +163,18 @@ static void load_pixelate_hexagonal_effect(composite_blur_filter_data_t *filter)
 				filter->param_uv_size = param;
 			} else if (strcmp(info.name, "pixel_size") == 0) {
 				filter->param_pixel_size = param;
+			} else if (strcmp(info.name, "tess_origin") == 0) {
+				filter->param_pixel_center = param;
+			} else if (strcmp(info.name, "tess_rot") == 0) {
+				filter->param_pixel_rot = param;
+			} else if (strcmp(info.name, "cos_theta") == 0) {
+				filter->param_pixel_cos_theta = param;
+			} else if (strcmp(info.name, "sin_theta") == 0) {
+				filter->param_pixel_sin_theta = param;
+			} else if (strcmp(info.name, "cos_rtheta") == 0) {
+				filter->param_pixel_cos_rtheta = param;
+			} else if (strcmp(info.name, "sin_rtheta") == 0) {
+				filter->param_pixel_sin_rtheta = param;
 			}
 		}
 	}
@@ -146,6 +196,18 @@ static void load_pixelate_circle_effect(composite_blur_filter_data_t *filter)
 				filter->param_uv_size = param;
 			} else if (strcmp(info.name, "pixel_size") == 0) {
 				filter->param_pixel_size = param;
+			} else if (strcmp(info.name, "tess_origin") == 0) {
+				filter->param_pixel_center = param;
+			} else if (strcmp(info.name, "tess_rot") == 0) {
+				filter->param_pixel_rot = param;
+			} else if (strcmp(info.name, "cos_theta") == 0) {
+				filter->param_pixel_cos_theta = param;
+			} else if (strcmp(info.name, "sin_theta") == 0) {
+				filter->param_pixel_sin_theta = param;
+			} else if (strcmp(info.name, "cos_rtheta") == 0) {
+				filter->param_pixel_cos_rtheta = param;
+			} else if (strcmp(info.name, "sin_rtheta") == 0) {
+				filter->param_pixel_sin_rtheta = param;
 			}
 		}
 	}
@@ -167,6 +229,18 @@ static void load_pixelate_triangle_effect(composite_blur_filter_data_t *filter)
 				filter->param_uv_size = param;
 			} else if (strcmp(info.name, "pixel_size") == 0) {
 				filter->param_pixel_size = param;
+			} else if (strcmp(info.name, "tess_origin") == 0) {
+				filter->param_pixel_center = param;
+			} else if (strcmp(info.name, "tess_rot") == 0) {
+				filter->param_pixel_rot = param;
+			} else if (strcmp(info.name, "cos_theta") == 0) {
+				filter->param_pixel_cos_theta = param;
+			} else if (strcmp(info.name, "sin_theta") == 0) {
+				filter->param_pixel_sin_theta = param;
+			} else if (strcmp(info.name, "cos_rtheta") == 0) {
+				filter->param_pixel_cos_rtheta = param;
+			} else if (strcmp(info.name, "sin_rtheta") == 0) {
+				filter->param_pixel_sin_rtheta = param;
 			}
 		}
 	}

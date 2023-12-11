@@ -140,9 +140,21 @@ struct composite_blur_filter_data {
 	int kawase_passes;
 
 	// Pixelate Blur
-	gs_eparam_t *param_pixel_size;
 	int pixelate_type;
 	int pixelate_type_last;
+	struct vec2 pixelate_tessel_center;
+	float pixelate_tessel_rot;
+	float pixelate_cos_theta;
+	float pixelate_sin_theta;
+	float pixelate_cos_rtheta;
+	float pixelate_sin_rtheta;
+	gs_eparam_t *param_pixel_size;
+	gs_eparam_t *param_pixel_center;
+	gs_eparam_t *param_pixel_rot;
+	gs_eparam_t *param_pixel_cos_theta;
+	gs_eparam_t *param_pixel_sin_theta;
+	gs_eparam_t *param_pixel_cos_rtheta;
+	gs_eparam_t *param_pixel_sin_rtheta;
 
 	// Radial Blur
 	gs_eparam_t *param_radial_center;
