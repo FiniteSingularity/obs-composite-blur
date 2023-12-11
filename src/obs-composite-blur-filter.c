@@ -8,7 +8,7 @@
 struct obs_source_info obs_composite_blur = {
 	.id = "obs_composite_blur",
 	.type = OBS_SOURCE_TYPE_FILTER,
-	.output_flags = OBS_SOURCE_VIDEO,
+	.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_SRGB,
 	.get_name = composite_blur_name,
 	.create = composite_blur_create,
 	.destroy = composite_blur_destroy,
@@ -426,11 +426,12 @@ static void get_input_source(composite_blur_filter_data_t *filter)
 		create_or_reset_texrender(filter->input_texrender);
 	if (obs_source_process_filter_begin_with_color_space(
 		    filter->context, format, source_space,
-					    OBS_NO_DIRECT_RENDERING) &&
+					    OBS_ALLOW_DIRECT_RENDERING) &&
 	    gs_texrender_begin(filter->input_texrender, filter->width,
 			       filter->height)) {
 
 		set_blending_parameters();
+		//gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 		gs_ortho(0.0f, (float)filter->width, 0.0f,
 			 (float)filter->height, -100.0f, 100.0f);
 		obs_source_process_filter_end(filter->context, pass_through,
@@ -439,6 +440,7 @@ static void get_input_source(composite_blur_filter_data_t *filter)
 		gs_blend_state_pop();
 	}
 }
+
 
 static void draw_output_to_source(composite_blur_filter_data_t *filter)
 {
@@ -457,13 +459,14 @@ static void draw_output_to_source(composite_blur_filter_data_t *filter)
 
 	if (!obs_source_process_filter_begin_with_color_space(
 		    filter->context, format, source_space,
-		    OBS_NO_DIRECT_RENDERING)) {
+		    OBS_ALLOW_DIRECT_RENDERING)) {
 		return;
 	}
 
 	gs_texture_t *texture =
 		gs_texrender_get_texture(filter->output_texrender);
 	gs_effect_t *pass_through = filter->output_effect;
+	//gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 	if (filter->param_output_image) {
 		gs_effect_set_texture(filter->param_output_image, texture);
 	}
@@ -471,8 +474,8 @@ static void draw_output_to_source(composite_blur_filter_data_t *filter)
 	gs_blend_state_push();
 	gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 
-	gs_ortho(0.0f, (float)filter->width, 0.0f, (float)filter->height,
-		 -100.0f, 100.0f);
+	//gs_ortho(0.0f, (float)filter->width, 0.0f, (float)filter->height,
+	//	 -100.0f, 100.0f);
 
 	obs_source_process_filter_end(filter->context, pass_through,
 				      filter->width, filter->height);
