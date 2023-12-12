@@ -406,32 +406,52 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 	}
 }
 
+//static void get_input_source(composite_blur_filter_data_t *filter)
+//{
+//	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+//
+//	const enum gs_color_space preferred_spaces[] = {
+//		GS_CS_SRGB,
+//		GS_CS_SRGB_16F,
+//		GS_CS_709_EXTENDED,
+//	};
+//
+//	const enum gs_color_space source_space = obs_source_get_color_space(
+//		obs_filter_get_target(filter->context),
+//		OBS_COUNTOF(preferred_spaces), preferred_spaces);
+//
+//	const enum gs_color_format format = gs_get_format_from_space(source_space);
+//
+//	filter->input_texrender =
+//		create_or_reset_texrender(filter->input_texrender);
+//	if (obs_source_process_filter_begin_with_color_space(
+//		    filter->context, format, source_space,
+//					    OBS_ALLOW_DIRECT_RENDERING) &&
+//	    gs_texrender_begin(filter->input_texrender, filter->width,
+//			       filter->height)) {
+//
+//		set_blending_parameters();
+//		//gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+//		gs_ortho(0.0f, (float)filter->width, 0.0f,
+//			 (float)filter->height, -100.0f, 100.0f);
+//		obs_source_process_filter_end(filter->context, pass_through,
+//					      filter->width, filter->height);
+//		gs_texrender_end(filter->input_texrender);
+//		gs_blend_state_pop();
+//	}
+//}
 static void get_input_source(composite_blur_filter_data_t *filter)
 {
 	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 
-	const enum gs_color_space preferred_spaces[] = {
-		GS_CS_SRGB,
-		GS_CS_SRGB_16F,
-		GS_CS_709_EXTENDED,
-	};
-
-	const enum gs_color_space source_space = obs_source_get_color_space(
-		obs_filter_get_target(filter->context),
-		OBS_COUNTOF(preferred_spaces), preferred_spaces);
-
-	const enum gs_color_format format = gs_get_format_from_space(source_space);
-
 	filter->input_texrender =
 		create_or_reset_texrender(filter->input_texrender);
-	if (obs_source_process_filter_begin_with_color_space(
-		    filter->context, format, source_space,
+	if (obs_source_process_filter_begin(filter->context, GS_RGBA,
 					    OBS_ALLOW_DIRECT_RENDERING) &&
 	    gs_texrender_begin(filter->input_texrender, filter->width,
 			       filter->height)) {
 
 		set_blending_parameters();
-		//gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 		gs_ortho(0.0f, (float)filter->width, 0.0f,
 			 (float)filter->height, -100.0f, 100.0f);
 		obs_source_process_filter_end(filter->context, pass_through,
@@ -466,16 +486,13 @@ static void draw_output_to_source(composite_blur_filter_data_t *filter)
 	gs_texture_t *texture =
 		gs_texrender_get_texture(filter->output_texrender);
 	gs_effect_t *pass_through = filter->output_effect;
-	//gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+
 	if (filter->param_output_image) {
 		gs_effect_set_texture(filter->param_output_image, texture);
 	}
 	
 	gs_blend_state_push();
 	gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
-
-	//gs_ortho(0.0f, (float)filter->width, 0.0f, (float)filter->height,
-	//	 -100.0f, 100.0f);
 
 	obs_source_process_filter_end(filter->context, pass_through,
 				      filter->width, filter->height);
