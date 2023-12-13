@@ -85,8 +85,6 @@ static void gaussian_area_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
-	texture = blend_composite(texture, data);
-
 	data->render2 = create_or_reset_texrender(data->render2);
 
 	// 1. First pass- apply 1D blur kernel to horizontal dir.
@@ -187,8 +185,6 @@ static void gaussian_directional_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
-	texture = blend_composite(texture, data);
-
 	// 1. Single pass- blur only in one direction
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
@@ -262,8 +258,6 @@ static void gaussian_motion_blur(composite_blur_filter_data_t *data)
 		texrender_set_texture(texture, data->output_texrender);
 		return;
 	}
-
-	texture = blend_composite(texture, data);
 
 	// 1. Single pass- blur only in one direction
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
@@ -339,8 +333,6 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 		texrender_set_texture(texture, data->output_texrender);
 		return;
 	}
-
-	texture = blend_composite(texture, data);
 
 	// 1. Single pass- blur only in one direction
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");

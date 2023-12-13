@@ -54,8 +54,6 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
-	texture = blend_composite(texture, data);
-
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 

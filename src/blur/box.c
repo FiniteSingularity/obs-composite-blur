@@ -79,7 +79,6 @@ static void box_area_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
-	texture = blend_composite(texture, data);
 	const int passes = data->passes < 1 ? 1 : data->passes;
 	for (int i = 0; i < passes; i++) {
 		// 1. First pass- apply 1D blur kernel to horizontal dir.
@@ -162,8 +161,6 @@ static void box_directional_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
-	texture = blend_composite(texture, data);
-
 	for (int i = 0; i < data->passes; i++) {
 		gs_texrender_t *tmp = data->render2;
 		data->render2 = data->output_texrender;
@@ -225,8 +222,6 @@ static void box_zoom_blur(composite_blur_filter_data_t *data)
 		texrender_set_texture(texture, data->output_texrender);
 		return;
 	}
-
-	texture = blend_composite(texture, data);
 
 	for (int i = 0; i < data->passes; i++) {
 		gs_texrender_t *tmp = data->render2;
@@ -294,8 +289,6 @@ static void box_tilt_shift_blur(composite_blur_filter_data_t *data)
 		texrender_set_texture(texture, data->output_texrender);
 		return;
 	}
-
-	texture = blend_composite(texture, data);
 
 	for (int i = 0; i < data->passes; i++) {
 		// 1. First pass- apply 1D blur kernel to horizontal dir.
