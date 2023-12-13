@@ -1,4 +1,5 @@
 #include "pixelate.h"
+#include "dual_kawase.h"
 
 void set_pixelate_blur_types(obs_properties_t *props)
 {
@@ -36,11 +37,23 @@ void load_effect_pixelate(composite_blur_filter_data_t *filter)
 		load_pixelate_triangle_effect(filter);
 		break;
 	}
+	load_effect_dual_kawase(filter);
 }
 
 static void pixelate_square_blur(composite_blur_filter_data_t *data)
 {
-	gs_effect_t *effect = data->effect;
+	gs_effect_t *effect = data->pixelate_effect;
+
+	const float radius = (float)fmax((float)data->radius, 1.0f);
+
+	data->kawase_passes =
+		(int)(data->pixelate_smoothing_pct / 100.0f * radius);
+	render_video_dual_kawase(data);
+
+	gs_texrender_t *tmp = data->input_texrender;
+	data->input_texrender = data->output_texrender;
+	data->output_texrender = tmp;
+
 	gs_texture_t *texture = gs_texrender_get_texture(data->input_texrender);
 
 	if (!effect || !texture) {
@@ -59,7 +72,6 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
-	const float radius = (float)fmax((float)data->radius, 1.0f);
 	if (data->param_pixel_size) {
 		gs_effect_set_float(data->param_pixel_size, radius);
 	}
@@ -96,7 +108,6 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 				    data->pixelate_sin_rtheta);
 	}
 
-
 	data->output_texrender =
 		create_or_reset_texrender(data->output_texrender);
 
@@ -117,13 +128,15 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 static void load_pixelate_square_effect(composite_blur_filter_data_t *filter)
 {
 	const char *effect_file_path = "/shaders/pixelate_square.effect";
-	filter->effect = load_shader_effect(filter->effect, effect_file_path);
-	if (filter->effect) {
-		size_t effect_count = gs_effect_get_num_params(filter->effect);
+	filter->pixelate_effect =
+		load_shader_effect(filter->pixelate_effect, effect_file_path);
+	if (filter->pixelate_effect) {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->pixelate_effect);
 		for (size_t effect_index = 0; effect_index < effect_count;
 		     effect_index++) {
 			gs_eparam_t *param = gs_effect_get_param_by_idx(
-				filter->effect, effect_index);
+				filter->pixelate_effect, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
@@ -150,13 +163,15 @@ static void load_pixelate_square_effect(composite_blur_filter_data_t *filter)
 static void load_pixelate_hexagonal_effect(composite_blur_filter_data_t *filter)
 {
 	const char *effect_file_path = "/shaders/pixelate_hexagonal.effect";
-	filter->effect = load_shader_effect(filter->effect, effect_file_path);
-	if (filter->effect) {
-		size_t effect_count = gs_effect_get_num_params(filter->effect);
+	filter->pixelate_effect =
+		load_shader_effect(filter->pixelate_effect, effect_file_path);
+	if (filter->pixelate_effect) {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->pixelate_effect);
 		for (size_t effect_index = 0; effect_index < effect_count;
 		     effect_index++) {
 			gs_eparam_t *param = gs_effect_get_param_by_idx(
-				filter->effect, effect_index);
+				filter->pixelate_effect, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
@@ -183,13 +198,15 @@ static void load_pixelate_hexagonal_effect(composite_blur_filter_data_t *filter)
 static void load_pixelate_circle_effect(composite_blur_filter_data_t *filter)
 {
 	const char *effect_file_path = "/shaders/pixelate_circle.effect";
-	filter->effect = load_shader_effect(filter->effect, effect_file_path);
-	if (filter->effect) {
-		size_t effect_count = gs_effect_get_num_params(filter->effect);
+	filter->pixelate_effect =
+		load_shader_effect(filter->pixelate_effect, effect_file_path);
+	if (filter->pixelate_effect) {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->pixelate_effect);
 		for (size_t effect_index = 0; effect_index < effect_count;
 		     effect_index++) {
 			gs_eparam_t *param = gs_effect_get_param_by_idx(
-				filter->effect, effect_index);
+				filter->pixelate_effect, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
@@ -216,13 +233,15 @@ static void load_pixelate_circle_effect(composite_blur_filter_data_t *filter)
 static void load_pixelate_triangle_effect(composite_blur_filter_data_t *filter)
 {
 	const char *effect_file_path = "/shaders/pixelate_triangle.effect";
-	filter->effect = load_shader_effect(filter->effect, effect_file_path);
-	if (filter->effect) {
-		size_t effect_count = gs_effect_get_num_params(filter->effect);
+	filter->pixelate_effect =
+		load_shader_effect(filter->pixelate_effect, effect_file_path);
+	if (filter->pixelate_effect) {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->pixelate_effect);
 		for (size_t effect_index = 0; effect_index < effect_count;
 		     effect_index++) {
 			gs_eparam_t *param = gs_effect_get_param_by_idx(
-				filter->effect, effect_index);
+				filter->pixelate_effect, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {

@@ -98,6 +98,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->param_focus_angle = NULL;
 	filter->param_background = NULL;
 	filter->param_pixel_size = NULL;
+
 	filter->param_pixel_center = NULL;
 	filter->param_pixel_rot = NULL;
 	filter->param_pixel_cos_theta = NULL;
@@ -258,6 +259,9 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		filter->pixelate_type_last = filter->pixelate_type;
 		filter->reload = true;
 	}
+
+	filter->pixelate_smoothing_pct =
+		(float)obs_data_get_double(settings, "pixelate_smoothing_pct");
 
 	filter->pixelate_tessel_center.x = (float)obs_data_get_double(
 		settings, "pixelate_origin_x");
@@ -1012,6 +1016,10 @@ static obs_properties_t *composite_blur_properties(void *data)
 		props, "radius", obs_module_text("CompositeBlurFilter.Radius"),
 		0.0, 80.1, 0.1);
 
+	obs_properties_add_float_slider(
+		props, "pixelate_smoothing_pct", obs_module_text("CompositeBlurFilter.Pixelate.Smoothing"),
+		0.0, 500.0, 0.1);
+
 	obs_properties_t *pixelate_origin_group = obs_properties_create();
 
 	obs_properties_add_float_slider(
@@ -1464,6 +1472,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("kawase_passes", false, props);
 		setting_visibility("blur_type", true, props);
 		setting_visibility("pixelate_type", false, props);
+		setting_visibility("pixelate_smoothing_pct", false, props);
 		setting_visibility("pixelate_rotation", false, props);
 		setting_visibility("pixelate_origin_group", false, props);
 		set_blur_radius_settings(
@@ -1477,6 +1486,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("passes", true, props);
 		setting_visibility("blur_type", true, props);
 		setting_visibility("pixelate_type", false, props);
+		setting_visibility("pixelate_smoothing_pct", false, props);
 		setting_visibility("pixelate_rotation", false, props);
 		setting_visibility("pixelate_origin_group", false, props);
 		set_blur_radius_settings(
@@ -1490,6 +1500,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("kawase_passes", true, props);
 		setting_visibility("blur_type", false, props);
 		setting_visibility("pixelate_type", false, props);
+		setting_visibility("pixelate_smoothing_pct", false, props);
 		setting_visibility("pixelate_rotation", false, props);
 		setting_visibility("pixelate_origin_group", false, props);
 		set_dual_kawase_blur_types(props);
@@ -1502,6 +1513,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("kawase_passes", false, props);
 		setting_visibility("blur_type", false, props);
 		setting_visibility("pixelate_type", true, props);
+		setting_visibility("pixelate_smoothing_pct", true, props);
 		setting_visibility("pixelate_rotation", true, props);
 		setting_visibility("pixelate_origin_group", true, props);
 		set_blur_radius_settings(

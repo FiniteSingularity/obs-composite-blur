@@ -89,6 +89,7 @@ struct composite_blur_filter_data {
 	gs_effect_t *effect;
 	gs_effect_t *effect_2;
 	gs_effect_t *composite_effect;
+	gs_effect_t *pixelate_effect;
 	gs_effect_t *mix_effect;
 	gs_effect_t *effect_mask_effect;
 	gs_effect_t *output_effect;
@@ -144,6 +145,7 @@ struct composite_blur_filter_data {
 	int pixelate_type_last;
 	struct vec2 pixelate_tessel_center;
 	float pixelate_tessel_rot;
+	float pixelate_smoothing_pct;
 	float pixelate_cos_theta;
 	float pixelate_sin_theta;
 	float pixelate_cos_rtheta;
@@ -175,7 +177,6 @@ struct composite_blur_filter_data {
 	// Compositing
 	gs_eparam_t *param_background;
 	obs_weak_source_t *background;
-
 
 	// Mask
 	int mask_type;
