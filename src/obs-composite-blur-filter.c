@@ -39,6 +39,8 @@ static void composite_blur_defaults(obs_data_t *settings)
 		obs_module_text("CompositeBlurFilter.EffectMask.Source.None"));
 	obs_data_set_default_double(
 		settings, "effect_mask_source_filter_multiplier", 1.0);
+	obs_data_set_default_double(settings, "pixelate_origin_x", -1.e9);
+	obs_data_set_default_double(settings, "pixelate_origin_y", -1.e9);
 	obs_data_set_default_double(settings, "effect_mask_circle_center_x",
 				    50.0);
 	obs_data_set_default_double(settings, "effect_mask_circle_center_y",
@@ -176,6 +178,9 @@ static void composite_blur_destroy(void *data)
 	if (filter->effect_mask_effect) {
 		gs_effect_destroy(filter->effect_mask_effect);
 	}
+	if (filter->pixelate_effect) {
+		gs_effect_destroy(filter->pixelate_effect);
+	}
 	if (filter->output_effect) {
 		gs_effect_destroy(filter->output_effect);
 	}
@@ -196,6 +201,9 @@ static void composite_blur_destroy(void *data)
 	}
 	if (filter->composite_render) {
 		gs_texrender_destroy(filter->composite_render);
+	}
+	if (filter->pixelate_texrender) {
+		gs_texrender_destroy(filter->pixelate_texrender);
 	}
 
 	if (filter->kernel_texture) {
@@ -236,6 +244,15 @@ static uint32_t composite_blur_height(void *data)
 static void composite_blur_update(void *data, obs_data_t *settings)
 {
 	struct composite_blur_filter_data *filter = data;
+	double v = (float)obs_data_get_double(settings, "pixelate_origin_x");
+	if (filter->width > 0 &&
+	    (float)obs_data_get_double(settings, "pixelate_origin_x") < -1.e8) {
+		double width = (double)obs_source_get_width(filter->context);
+		double height = (double)obs_source_get_height(filter->context);
+		obs_data_set_double(settings, "pixelate_origin_x", width / 2.0);
+		obs_data_set_double(settings, "pixelate_origin_y",
+				    height / 2.0);
+	}
 
 	filter->blur_algorithm =
 		(int)obs_data_get_int(settings, "blur_algorithm");
@@ -263,13 +280,16 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 	filter->pixelate_smoothing_pct =
 		(float)obs_data_get_double(settings, "pixelate_smoothing_pct");
 
-	filter->pixelate_tessel_center.x = (float)obs_data_get_double(
-		settings, "pixelate_origin_x");
+	filter->pixelate_tessel_center.x =
+		(float)obs_data_get_double(settings, "pixelate_origin_x");
 
 	filter->pixelate_tessel_center.y =
 		(float)obs_data_get_double(settings, "pixelate_origin_y");
 
-	const double theta = M_PI * (float)obs_data_get_double(settings, "pixelate_rotation") / 180.0;
+	const double theta =
+		M_PI *
+		(float)obs_data_get_double(settings, "pixelate_rotation") /
+		180.0;
 	filter->pixelate_cos_theta = (float)cos(theta);
 	filter->pixelate_sin_theta = (float)sin(theta);
 	filter->pixelate_sin_rtheta = (float)sin(-theta);
@@ -470,7 +490,8 @@ static void get_input_source(composite_blur_filter_data_t *filter)
 		// the colors back into non-pre-multiplied space.
 		obs_source_process_filter_tech_end(filter->context,
 						   pass_through, filter->width,
-						   filter->height, "DrawAlphaDivide");
+						   filter->height,
+						   "DrawAlphaDivide");
 		gs_texrender_end(filter->input_texrender);
 		gs_blend_state_pop();
 	}
@@ -1017,25 +1038,21 @@ static obs_properties_t *composite_blur_properties(void *data)
 		0.0, 80.1, 0.1);
 
 	obs_properties_add_float_slider(
-		props, "pixelate_smoothing_pct", obs_module_text("CompositeBlurFilter.Pixelate.Smoothing"),
-		0.0, 500.0, 0.1);
+		props, "pixelate_smoothing_pct",
+		obs_module_text("CompositeBlurFilter.Pixelate.Smoothing"), 0.0,
+		100.0, 0.1);
 
 	obs_properties_t *pixelate_origin_group = obs_properties_create();
 
 	obs_properties_add_float_slider(
-		pixelate_origin_group, "pixelate_origin_x",
-		obs_module_text("CompositeBlurFilter.Pixelate.Origin_X"), -6000.0, 6000.0,
-		0.1);
+		props, "pixelate_origin_x",
+		obs_module_text("CompositeBlurFilter.Pixelate.Origin_X"),
+		-6000.0, 6000.0, 0.1);
 
 	obs_properties_add_float_slider(
-		pixelate_origin_group, "pixelate_origin_y",
-		obs_module_text("CompositeBlurFilter.Pixelate.Origin_Y"), -6000.0, 6000.0,
-		0.1);
-
-	obs_properties_add_group(
-		props, "pixelate_origin_group",
-		obs_module_text("CompositeBlurFilter.Pixelate.Origin"),
-		OBS_GROUP_NORMAL, pixelate_origin_group);
+		props, "pixelate_origin_y",
+		obs_module_text("CompositeBlurFilter.Pixelate.Origin_Y"),
+		-6000.0, 6000.0, 0.1);
 
 	obs_properties_add_float_slider(
 		props, "pixelate_rotation",
@@ -1474,7 +1491,8 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("pixelate_type", false, props);
 		setting_visibility("pixelate_smoothing_pct", false, props);
 		setting_visibility("pixelate_rotation", false, props);
-		setting_visibility("pixelate_origin_group", false, props);
+		setting_visibility("pixelate_origin_x", false, props);
+		setting_visibility("pixelate_origin_y", false, props);
 		set_blur_radius_settings(
 			obs_module_text("CompositeBlurFilter.Radius"), 0.0f,
 			80.01f, 0.1f, props);
@@ -1488,7 +1506,8 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("pixelate_type", false, props);
 		setting_visibility("pixelate_smoothing_pct", false, props);
 		setting_visibility("pixelate_rotation", false, props);
-		setting_visibility("pixelate_origin_group", false, props);
+		setting_visibility("pixelate_origin_x", false, props);
+		setting_visibility("pixelate_origin_y", false, props);
 		set_blur_radius_settings(
 			obs_module_text("CompositeBlurFilter.Radius"), 0.0f,
 			100.01f, 0.1f, props);
@@ -1502,7 +1521,8 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("pixelate_type", false, props);
 		setting_visibility("pixelate_smoothing_pct", false, props);
 		setting_visibility("pixelate_rotation", false, props);
-		setting_visibility("pixelate_origin_group", false, props);
+		setting_visibility("pixelate_origin_x", false, props);
+		setting_visibility("pixelate_origin_y", false, props);
 		set_dual_kawase_blur_types(props);
 		obs_data_set_int(settings, "blur_type", TYPE_AREA);
 		settings_blur_area(props, settings);
@@ -1515,7 +1535,8 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("pixelate_type", true, props);
 		setting_visibility("pixelate_smoothing_pct", true, props);
 		setting_visibility("pixelate_rotation", true, props);
-		setting_visibility("pixelate_origin_group", true, props);
+		setting_visibility("pixelate_origin_x", true, props);
+		setting_visibility("pixelate_origin_y", true, props);
 		set_blur_radius_settings(
 			obs_module_text(
 				"CompositeBlurFilter.Pixelate.PixelSize"),
@@ -1944,7 +1965,7 @@ static void load_output_effect(composite_blur_filter_data_t *filter)
 	}
 }
 
-void get_background(composite_blur_filter_data_t* data)
+void get_background(composite_blur_filter_data_t *data)
 {
 	// Get source
 	obs_source_t *source =
@@ -1964,14 +1985,16 @@ void get_background(composite_blur_filter_data_t* data)
 		// const enum gs_color_format format =
 		// 	gs_get_format_from_space(space);
 
-		data->background_texrender = create_or_reset_texrender(data->background_texrender);
+		data->background_texrender =
+			create_or_reset_texrender(data->background_texrender);
 		uint32_t base_width = obs_source_get_base_width(source);
 		uint32_t base_height = obs_source_get_base_height(source);
 		gs_blend_state_push();
 		gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
 		//set_blending_parameters();
 		if (gs_texrender_begin_with_color_space(
-			    data->background_texrender, base_width, base_height, space)) {
+			    data->background_texrender, base_width, base_height,
+			    space)) {
 			const float w = (float)base_width;
 			const float h = (float)base_height;
 			struct vec4 clear_color;
@@ -2062,9 +2085,10 @@ gs_texture_t *blend_composite(gs_texture_t *texture,
 		//gs_texrender_destroy(source_render);
 		//gs_blend_state_pop();
 
-		const enum gs_color_space context_space = obs_source_get_color_space(
-			data->context, OBS_COUNTOF(preferred_spaces),
-			preferred_spaces);
+		const enum gs_color_space context_space =
+			obs_source_get_color_space(
+				data->context, OBS_COUNTOF(preferred_spaces),
+				preferred_spaces);
 		const enum gs_color_format context_format =
 			gs_get_format_from_space(context_space);
 

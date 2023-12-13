@@ -157,6 +157,7 @@ struct composite_blur_filter_data {
 	gs_eparam_t *param_pixel_sin_theta;
 	gs_eparam_t *param_pixel_cos_rtheta;
 	gs_eparam_t *param_pixel_sin_rtheta;
+	gs_texrender_t *pixelate_texrender;
 
 	// Radial Blur
 	gs_eparam_t *param_radial_center;

@@ -49,12 +49,14 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 	data->kawase_passes =
 		(int)(data->pixelate_smoothing_pct / 100.0f * radius);
 	render_video_dual_kawase(data);
+	data->pixelate_texrender =
+		create_or_reset_texrender(data->pixelate_texrender);
 
-	gs_texrender_t *tmp = data->input_texrender;
-	data->input_texrender = data->output_texrender;
+	gs_texrender_t *tmp = data->pixelate_texrender;
+	data->pixelate_texrender = data->output_texrender;
 	data->output_texrender = tmp;
 
-	gs_texture_t *texture = gs_texrender_get_texture(data->input_texrender);
+	gs_texture_t *texture = gs_texrender_get_texture(data->pixelate_texrender);
 
 	if (!effect || !texture) {
 		return;
@@ -127,6 +129,13 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 
 static void load_pixelate_square_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->pixelate_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->pixelate_effect);
+		filter->pixelate_effect = NULL;
+		obs_leave_graphics();
+	}
+
 	const char *effect_file_path = "/shaders/pixelate_square.effect";
 	filter->pixelate_effect =
 		load_shader_effect(filter->pixelate_effect, effect_file_path);
@@ -162,6 +171,13 @@ static void load_pixelate_square_effect(composite_blur_filter_data_t *filter)
 
 static void load_pixelate_hexagonal_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->pixelate_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->pixelate_effect);
+		filter->pixelate_effect = NULL;
+		obs_leave_graphics();
+	}
+
 	const char *effect_file_path = "/shaders/pixelate_hexagonal.effect";
 	filter->pixelate_effect =
 		load_shader_effect(filter->pixelate_effect, effect_file_path);
@@ -197,6 +213,13 @@ static void load_pixelate_hexagonal_effect(composite_blur_filter_data_t *filter)
 
 static void load_pixelate_circle_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->pixelate_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->pixelate_effect);
+		filter->pixelate_effect = NULL;
+		obs_leave_graphics();
+	}
+
 	const char *effect_file_path = "/shaders/pixelate_circle.effect";
 	filter->pixelate_effect =
 		load_shader_effect(filter->pixelate_effect, effect_file_path);
@@ -232,6 +255,13 @@ static void load_pixelate_circle_effect(composite_blur_filter_data_t *filter)
 
 static void load_pixelate_triangle_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->pixelate_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->pixelate_effect);
+		filter->pixelate_effect = NULL;
+		obs_leave_graphics();
+	}
+
 	const char *effect_file_path = "/shaders/pixelate_triangle.effect";
 	filter->pixelate_effect =
 		load_shader_effect(filter->pixelate_effect, effect_file_path);
