@@ -143,8 +143,6 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 	if (!effect_down || !effect_up || !texture) {
 		return;
 	}
-
-	texture = blend_composite(texture, data);
 	set_blending_parameters();
 
 	int last_pass = 1;
