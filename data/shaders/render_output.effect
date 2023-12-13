@@ -22,9 +22,21 @@ VertData mainTransform(VertData v_in)
 	return v_in;
 }
 
+float srgb_nonlinear_to_linear_channel(float u)
+{
+	return (u <= 0.04045) ? (u / 12.92) : pow((u + 0.055) / 1.055, 2.4);
+}
+
+float3 srgb_nonlinear_to_linear(float3 v)
+{
+	return float3(srgb_nonlinear_to_linear_channel(v.r), srgb_nonlinear_to_linear_channel(v.g), srgb_nonlinear_to_linear_channel(v.b));
+}
+
 float4 mainImage(VertData v_in) : TARGET
 {
-	return output_image.Sample(textureSampler, v_in.uv);
+	float4 px = output_image.Sample(textureSampler, v_in.uv);
+	px.xyz = srgb_nonlinear_to_linear(px.xyz);
+	return px;
 }
 
 technique Draw
