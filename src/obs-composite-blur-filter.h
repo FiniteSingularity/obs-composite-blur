@@ -91,6 +91,7 @@ struct composite_blur_filter_data {
 	gs_effect_t *composite_effect;
 	gs_effect_t *mix_effect;
 	gs_effect_t *effect_mask_effect;
+	gs_effect_t *output_effect;
 
 	// Render pipeline
 	bool input_rendered;
@@ -210,6 +211,9 @@ struct composite_blur_filter_data {
 	float mask_rect_inv;
 	gs_image_file_t *mask_image;
 
+	// Output Effect Parameters
+	gs_eparam_t *param_output_image;
+
 	uint32_t width;
 	uint32_t height;
 
@@ -234,6 +238,7 @@ static obs_properties_t *composite_blur_properties(void *data);
 static void composite_blur_reload_effect(composite_blur_filter_data_t *filter);
 static void load_composite_effect(composite_blur_filter_data_t *filter);
 static void load_mix_effect(composite_blur_filter_data_t *filter);
+static void load_output_effect(composite_blur_filter_data_t *filter);
 extern gs_texture_t *blend_composite(gs_texture_t *texture,
 				     composite_blur_filter_data_t *data);
 
