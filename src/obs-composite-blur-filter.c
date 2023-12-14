@@ -1891,7 +1891,7 @@ void get_background(composite_blur_filter_data_t* data)
 		data->background ? obs_weak_source_get_source(data->background)
 				 : NULL;
 
-	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+	//gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 	if (source) {
 		const enum gs_color_space preferred_spaces[] = {
 			GS_CS_SRGB,
@@ -1901,8 +1901,8 @@ void get_background(composite_blur_filter_data_t* data)
 		const enum gs_color_space space = obs_source_get_color_space(
 			data->context, OBS_COUNTOF(preferred_spaces),
 			preferred_spaces);
-		const enum gs_color_format format =
-			gs_get_format_from_space(space);
+		// const enum gs_color_format format =
+		// 	gs_get_format_from_space(space);
 
 		data->background_texrender = create_or_reset_texrender(data->background_texrender);
 		uint32_t base_width = obs_source_get_base_width(source);
