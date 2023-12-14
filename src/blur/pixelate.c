@@ -54,18 +54,20 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
+	texture = blend_composite(texture, data);
+
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
 	const float radius = (float)fmax((float)data->radius, 1.0f);
-	if(data->param_pixel_size) {
+	if (data->param_pixel_size) {
 		gs_effect_set_float(data->param_pixel_size, radius);
 	}
 
 	struct vec2 uv_size;
 	uv_size.x = (float)data->width;
 	uv_size.y = (float)data->height;
-	if(data->param_uv_size) {
+	if (data->param_uv_size) {
 		gs_effect_set_vec2(data->param_uv_size, &uv_size);
 	}
 

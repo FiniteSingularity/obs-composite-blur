@@ -79,6 +79,7 @@ static void box_area_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
+	texture = blend_composite(texture, data);
 	const int passes = data->passes < 1 ? 1 : data->passes;
 	for (int i = 0; i < passes; i++) {
 		// 1. First pass- apply 1D blur kernel to horizontal dir.
@@ -88,14 +89,14 @@ static void box_area_blur(composite_blur_filter_data_t *data)
 			gs_effect_get_param_by_name(effect, "image");
 		gs_effect_set_texture(image, texture);
 
-		if(data->param_radius) {
+		if (data->param_radius) {
 			gs_effect_set_float(data->param_radius, data->radius);
 		}
 
 		struct vec2 texel_step;
 		texel_step.x = 1.0f / data->width;
 		texel_step.y = 0.0f;
-		if(data->param_texel_step) {
+		if (data->param_texel_step) {
 			gs_effect_set_vec2(data->param_texel_step, &texel_step);
 		}
 
@@ -120,7 +121,7 @@ static void box_area_blur(composite_blur_filter_data_t *data)
 
 		texel_step.x = 0.0f;
 		texel_step.y = 1.0f / data->height;
-		if(data->param_texel_step) {
+		if (data->param_texel_step) {
 			gs_effect_set_vec2(data->param_texel_step, &texel_step);
 		}
 
@@ -161,6 +162,8 @@ static void box_directional_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
+	texture = blend_composite(texture, data);
+
 	for (int i = 0; i < data->passes; i++) {
 		gs_texrender_t *tmp = data->render2;
 		data->render2 = data->output_texrender;
@@ -171,7 +174,7 @@ static void box_directional_blur(composite_blur_filter_data_t *data)
 			gs_effect_get_param_by_name(effect, "image");
 		gs_effect_set_texture(image, texture);
 
-		if(data->param_radius) {
+		if (data->param_radius) {
 			gs_effect_set_float(data->param_radius, data->radius);
 		}
 
@@ -179,7 +182,7 @@ static void box_directional_blur(composite_blur_filter_data_t *data)
 		float rads = -data->angle * ((float)M_PI / 180.0f);
 		texel_step.x = (float)cos(rads) / data->width;
 		texel_step.y = (float)sin(rads) / data->height;
-		if(data->param_texel_step) {
+		if (data->param_texel_step) {
 			gs_effect_set_vec2(data->param_texel_step, &texel_step);
 		}
 
@@ -223,6 +226,8 @@ static void box_zoom_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
+	texture = blend_composite(texture, data);
+
 	for (int i = 0; i < data->passes; i++) {
 		gs_texrender_t *tmp = data->render2;
 		data->render2 = data->output_texrender;
@@ -233,21 +238,22 @@ static void box_zoom_blur(composite_blur_filter_data_t *data)
 			gs_effect_get_param_by_name(effect, "image");
 		gs_effect_set_texture(image, texture);
 
-		if(data->param_radius) {
+		if (data->param_radius) {
 			gs_effect_set_float(data->param_radius, data->radius);
 		}
 
 		struct vec2 radial_center;
 		radial_center.x = data->center_x;
 		radial_center.y = data->center_y;
-		if(data->param_radial_center) {
-			gs_effect_set_vec2(data->param_radial_center, &radial_center);
+		if (data->param_radial_center) {
+			gs_effect_set_vec2(data->param_radial_center,
+					   &radial_center);
 		}
 
 		struct vec2 uv_size;
 		uv_size.x = (float)data->width;
 		uv_size.y = (float)data->height;
-		if(data->param_uv_size) {
+		if (data->param_uv_size) {
 			gs_effect_set_vec2(data->param_uv_size, &uv_size);
 		}
 
@@ -290,6 +296,8 @@ static void box_tilt_shift_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
+	texture = blend_composite(texture, data);
+
 	for (int i = 0; i < data->passes; i++) {
 		// 1. First pass- apply 1D blur kernel to horizontal dir.
 		data->render2 = create_or_reset_texrender(data->render2);
@@ -297,39 +305,43 @@ static void box_tilt_shift_blur(composite_blur_filter_data_t *data)
 		gs_eparam_t *image =
 			gs_effect_get_param_by_name(effect, "image");
 		gs_effect_set_texture(image, texture);
-		
-		if(data->param_radius) {
-			gs_effect_set_float(data->param_radius, (float)data->radius);
+
+		if (data->param_radius) {
+			gs_effect_set_float(data->param_radius,
+					    (float)data->radius);
 		}
 
 		const float focus_center =
 			1.0f - (float)data->tilt_shift_center;
-		if(data->param_focus_center) {
-			gs_effect_set_float(data->param_focus_center, focus_center);
+		if (data->param_focus_center) {
+			gs_effect_set_float(data->param_focus_center,
+					    focus_center);
 		}
 
 		const float focus_width = (float)data->tilt_shift_width / 2.0f;
-		if(data->param_focus_width) {
-			gs_effect_set_float(data->param_focus_width, focus_width);
+		if (data->param_focus_width) {
+			gs_effect_set_float(data->param_focus_width,
+					    focus_width);
 		}
 
 		const float focus_angle =
 			(float)data->tilt_shift_angle * (M_PI / 180.0f);
-		if(data->param_focus_angle) {
-			gs_effect_set_float(data->param_focus_angle, focus_angle);
+		if (data->param_focus_angle) {
+			gs_effect_set_float(data->param_focus_angle,
+					    focus_angle);
 		}
 
 		struct vec2 texel_step;
 		texel_step.x = 1.0f / data->width;
 		texel_step.y = 0.0f;
-		if(data->param_texel_step) {
+		if (data->param_texel_step) {
 			gs_effect_set_vec2(data->param_texel_step, &texel_step);
 		}
 
 		struct vec2 size;
 		size.x = (float)data->width;
 		size.y = (float)data->height;
-		if(data->param_uv_size) {
+		if (data->param_uv_size) {
 			gs_effect_set_vec2(data->param_uv_size, &size);
 		}
 
@@ -354,7 +366,7 @@ static void box_tilt_shift_blur(composite_blur_filter_data_t *data)
 
 		texel_step.x = 0.0f;
 		texel_step.y = 1.0f / data->height;
-		if(data->param_texel_step) {
+		if (data->param_texel_step) {
 			gs_effect_set_vec2(data->param_texel_step, &texel_step);
 		}
 
@@ -389,7 +401,7 @@ static void load_1d_box_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "texel_step") == 0) {
 				filter->param_texel_step = param;
-			} else if(strcmp(info.name, "radius") == 0) {
+			} else if (strcmp(info.name, "radius") == 0) {
 				filter->param_radius = param;
 			}
 		}
@@ -412,13 +424,13 @@ static void load_tiltshift_box_effect(composite_blur_filter_data_t *filter)
 				filter->param_uv_size = param;
 			} else if (strcmp(info.name, "texel_step") == 0) {
 				filter->param_texel_step = param;
-			} else if(strcmp(info.name, "radius") == 0) {
+			} else if (strcmp(info.name, "radius") == 0) {
 				filter->param_radius = param;
 			} else if (strcmp(info.name, "focus_center") == 0) {
 				filter->param_focus_center = param;
-			} else if(strcmp(info.name, "focus_width") == 0) {
+			} else if (strcmp(info.name, "focus_width") == 0) {
 				filter->param_focus_width = param;
-			} else if(strcmp(info.name, "focus_angle") == 0) {
+			} else if (strcmp(info.name, "focus_angle") == 0) {
 				filter->param_focus_angle = param;
 			}
 		}
@@ -439,9 +451,9 @@ static void load_radial_box_effect(composite_blur_filter_data_t *filter)
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
-			} else if(strcmp(info.name, "radius") == 0) {
+			} else if (strcmp(info.name, "radius") == 0) {
 				filter->param_radius = param;
-			} else if(strcmp(info.name, "radial_center") == 0) {
+			} else if (strcmp(info.name, "radial_center") == 0) {
 				filter->param_radial_center = param;
 			}
 		}

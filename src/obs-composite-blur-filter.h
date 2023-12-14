@@ -88,6 +88,7 @@ struct composite_blur_filter_data {
 	// Effects
 	gs_effect_t *effect;
 	gs_effect_t *effect_2;
+	gs_effect_t *composite_effect;
 	gs_effect_t *mix_effect;
 	gs_effect_t *effect_mask_effect;
 	gs_effect_t *output_effect;
@@ -100,6 +101,9 @@ struct composite_blur_filter_data {
 	// Frame Buffers
 	gs_texrender_t *render;
 	gs_texrender_t *render2;
+	gs_texrender_t *background_texrender;
+	// Renderer for composite render step
+	gs_texrender_t *composite_render;
 
 	bool rendering;
 	bool reload;
@@ -155,6 +159,11 @@ struct composite_blur_filter_data {
 	float tilt_shift_center;
 	gs_eparam_t *param_focus_angle;
 	float tilt_shift_angle;
+
+	// Compositing
+	gs_eparam_t *param_background;
+	obs_weak_source_t *background;
+
 
 	// Mask
 	int mask_type;
@@ -229,8 +238,11 @@ static void composite_blur_video_render(void *data, gs_effect_t *effect);
 static void composite_blur_video_tick(void *data, float seconds);
 static obs_properties_t *composite_blur_properties(void *data);
 static void composite_blur_reload_effect(composite_blur_filter_data_t *filter);
+static void load_composite_effect(composite_blur_filter_data_t *filter);
 static void load_mix_effect(composite_blur_filter_data_t *filter);
 static void load_output_effect(composite_blur_filter_data_t *filter);
+extern gs_texture_t *blend_composite(gs_texture_t *texture,
+				     composite_blur_filter_data_t *data);
 
 static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 					    obs_property_t *p,
@@ -264,3 +276,4 @@ static void effect_mask_load_effect(composite_blur_filter_data_t *filter);
 static bool setting_effect_mask_source_filter_modified(obs_properties_t *props,
 						       obs_property_t *p,
 						       obs_data_t *settings);
+extern void get_background(composite_blur_filter_data_t *data);

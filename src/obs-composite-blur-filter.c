@@ -29,6 +29,9 @@ static const char *composite_blur_name(void *unused)
 static void composite_blur_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_double(settings, "radius", 10.0);
+	obs_data_set_default_string(
+		settings, "background",
+		obs_module_text("CompositeBlurFilter.Background.None"));
 	obs_data_set_default_int(settings, "passes", 1);
 	obs_data_set_default_int(settings, "kawase_passes", 10);
 	obs_data_set_default_string(
@@ -93,6 +96,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->param_focus_width = NULL;
 	filter->param_focus_center = NULL;
 	filter->param_focus_angle = NULL;
+	filter->param_background = NULL;
 	filter->param_pixel_size = NULL;
 	filter->param_mask_crop_scale = NULL;
 	filter->param_mask_crop_offset = NULL;
@@ -156,6 +160,9 @@ static void composite_blur_destroy(void *data)
 	if (filter->effect_2) {
 		gs_effect_destroy(filter->effect_2);
 	}
+	if (filter->composite_effect) {
+		gs_effect_destroy(filter->composite_effect);
+	}
 	if (filter->mix_effect) {
 		gs_effect_destroy(filter->mix_effect);
 	}
@@ -171,12 +178,17 @@ static void composite_blur_destroy(void *data)
 	if (filter->render2) {
 		gs_texrender_destroy(filter->render2);
 	}
-
+	if (filter->background_texrender) {
+		gs_texrender_destroy(filter->background_texrender);
+	}
 	if (filter->input_texrender) {
 		gs_texrender_destroy(filter->input_texrender);
 	}
 	if (filter->output_texrender) {
 		gs_texrender_destroy(filter->output_texrender);
+	}
+	if (filter->composite_render) {
+		gs_texrender_destroy(filter->composite_render);
 	}
 
 	if (filter->kernel_texture) {
@@ -185,6 +197,10 @@ static void composite_blur_destroy(void *data)
 	if (filter->mask_image) {
 		gs_image_file_free(filter->mask_image);
 		bfree(filter->mask_image);
+	}
+
+	if (filter->background) {
+		obs_weak_source_release(filter->background);
 	}
 
 	if (filter->mask_source_source) {
@@ -374,6 +390,14 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 				       ? obs_get_source_by_name(source_name)
 				       : NULL;
 
+	if (source) {
+		obs_weak_source_release(filter->background);
+		filter->background = obs_source_get_weak_source(source);
+		obs_source_release(source);
+	} else {
+		filter->background = NULL;
+	}
+
 	if (filter->reload) {
 		filter->reload = false;
 		composite_blur_reload_effect(filter);
@@ -387,8 +411,10 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 
 static void get_input_source(composite_blur_filter_data_t *filter)
 {
+	// Use the OBS default effect file as our effect.
 	gs_effect_t *pass_through = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 
+	// Set up our color space info.
 	const enum gs_color_space preferred_spaces[] = {
 		GS_CS_SRGB,
 		GS_CS_SRGB_16F,
@@ -399,27 +425,34 @@ static void get_input_source(composite_blur_filter_data_t *filter)
 		obs_filter_get_target(filter->context),
 		OBS_COUNTOF(preferred_spaces), preferred_spaces);
 
-	const enum gs_color_format format = gs_get_format_from_space(source_space);
+	const enum gs_color_format format =
+		gs_get_format_from_space(source_space);
 
+	// Set up our input_texrender to catch the output texture.
 	filter->input_texrender =
 		create_or_reset_texrender(filter->input_texrender);
+
+	// Start the rendering process with our correct color space params,
+	// And set up your texrender to recieve the created texture.
 	if (obs_source_process_filter_begin_with_color_space(
 		    filter->context, format, source_space,
-					    OBS_ALLOW_DIRECT_RENDERING) &&
+		    OBS_ALLOW_DIRECT_RENDERING) &&
 	    gs_texrender_begin(filter->input_texrender, filter->width,
 			       filter->height)) {
 
 		set_blending_parameters();
-		//gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 		gs_ortho(0.0f, (float)filter->width, 0.0f,
 			 (float)filter->height, -100.0f, 100.0f);
-		obs_source_process_filter_end(filter->context, pass_through,
-					      filter->width, filter->height);
+		// The incoming source is pre-multiplied alpha, so use the
+		// OBS default effect "DrawAlphaDivide" technique to convert
+		// the colors back into non-pre-multiplied space.
+		obs_source_process_filter_tech_end(filter->context,
+						   pass_through, filter->width,
+						   filter->height, "DrawAlphaDivide");
 		gs_texrender_end(filter->input_texrender);
 		gs_blend_state_pop();
 	}
 }
-
 
 static void draw_output_to_source(composite_blur_filter_data_t *filter)
 {
@@ -449,9 +482,10 @@ static void draw_output_to_source(composite_blur_filter_data_t *filter)
 	if (filter->param_output_image) {
 		gs_effect_set_texture(filter->param_output_image, texture);
 	}
-	
+
 	gs_blend_state_push();
-	gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+	gs_blend_function_separate(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA,
+				   GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 
 	obs_source_process_filter_end(filter->context, pass_through,
 				      filter->width, filter->height);
@@ -483,12 +517,13 @@ static void composite_blur_video_render(void *data, gs_effect_t *effect)
 		// 2. Apply effect to texture, and render texture to video
 		filter->video_render(filter);
 
+		// 3. Apply mask to texture if one is selected by the user.
 		if (filter->mask_type != EFFECT_MASK_TYPE_NONE) {
 			// Swap output and render
 			apply_effect_mask(filter);
 		}
 
-		// 3. Draw result (filter->output_texrender) to source
+		// 4. Draw result (filter->output_texrender) to source
 		draw_output_to_source(filter);
 		filter->rendered = true;
 	}
@@ -1007,6 +1042,16 @@ static obs_properties_t *composite_blur_properties(void *data)
 		props, "tilt_shift_bounds",
 		obs_module_text("CompositeBlurFilter.TiltShift"),
 		OBS_GROUP_NORMAL, tilt_shift_bounds);
+
+	obs_property_t *p = obs_properties_add_list(
+		props, "background",
+		obs_module_text("CompositeBlurFilter.Background"),
+		OBS_COMBO_TYPE_EDITABLE, OBS_COMBO_FORMAT_STRING);
+	obs_enum_sources(add_source_to_list, p);
+	obs_enum_scenes(add_source_to_list, p);
+	obs_property_list_insert_string(
+		p, 0, obs_module_text("CompositeBlurFilter.Background.None"),
+		"");
 
 	obs_property_t *effect_mask_list = obs_properties_add_list(
 		props, "effect_mask",
@@ -1536,11 +1581,56 @@ static void composite_blur_reload_effect(composite_blur_filter_data_t *filter)
 
 	if (filter->load_effect) {
 		filter->load_effect(filter);
+		load_composite_effect(filter);
 		load_mix_effect(filter);
 		load_output_effect(filter);
 	}
 
 	obs_data_release(settings);
+}
+
+static void load_composite_effect(composite_blur_filter_data_t *filter)
+{
+	if (filter->composite_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->composite_effect);
+		filter->composite_effect = NULL;
+		obs_leave_graphics();
+	}
+
+	char *shader_text = NULL;
+	struct dstr filename = {0};
+	dstr_cat(&filename, obs_get_module_data_path(obs_current_module()));
+	dstr_cat(&filename, "/shaders/composite.effect");
+	shader_text = load_shader_from_file(filename.array);
+	dstr_free(&filename);
+	char *errors = NULL;
+
+	obs_enter_graphics();
+	filter->composite_effect = gs_effect_create(shader_text, NULL, &errors);
+	obs_leave_graphics();
+
+	bfree(shader_text);
+	if (filter->composite_effect == NULL) {
+		blog(LOG_WARNING,
+		     "[obs-composite-blur] Unable to load composite.effect file.  Errors:\n%s",
+		     (errors == NULL || strlen(errors) == 0 ? "(None)"
+							    : errors));
+		bfree(errors);
+	} else {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->composite_effect);
+		for (size_t effect_index = 0; effect_index < effect_count;
+		     effect_index++) {
+			gs_eparam_t *param = gs_effect_get_param_by_idx(
+				filter->composite_effect, effect_index);
+			struct gs_effect_param_info info;
+			gs_effect_get_param_info(param, &info);
+			if (strcmp(info.name, "background") == 0) {
+				filter->param_background = param;
+			}
+		}
+	}
 }
 
 static void load_crop_mask_effect(composite_blur_filter_data_t *filter)
@@ -1794,3 +1884,149 @@ static void load_output_effect(composite_blur_filter_data_t *filter)
 	}
 }
 
+void get_background(composite_blur_filter_data_t* data)
+{
+	// Get source
+	obs_source_t *source =
+		data->background ? obs_weak_source_get_source(data->background)
+				 : NULL;
+
+	//gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+	if (source) {
+		const enum gs_color_space preferred_spaces[] = {
+			GS_CS_SRGB,
+			GS_CS_SRGB_16F,
+			GS_CS_709_EXTENDED,
+		};
+		const enum gs_color_space space = obs_source_get_color_space(
+			data->context, OBS_COUNTOF(preferred_spaces),
+			preferred_spaces);
+		// const enum gs_color_format format =
+		// 	gs_get_format_from_space(space);
+
+		data->background_texrender = create_or_reset_texrender(data->background_texrender);
+		uint32_t base_width = obs_source_get_base_width(source);
+		uint32_t base_height = obs_source_get_base_height(source);
+		gs_blend_state_push();
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
+		//set_blending_parameters();
+		if (gs_texrender_begin_with_color_space(
+			    data->background_texrender, base_width, base_height, space)) {
+			const float w = (float)base_width;
+			const float h = (float)base_height;
+			struct vec4 clear_color;
+
+			vec4_zero(&clear_color);
+			gs_clear(GS_CLEAR_COLOR, &clear_color, 0.0f, 0);
+			gs_ortho(0.0f, w, 0.0f, h, -100.0f, 100.0f);
+
+			obs_source_video_render(source);
+			gs_texrender_end(data->background_texrender);
+		}
+		gs_blend_state_pop();
+		obs_source_release(source);
+	}
+}
+
+gs_texture_t *blend_composite(gs_texture_t *texture,
+			      composite_blur_filter_data_t *data)
+{
+	// Get source
+	obs_source_t *source =
+		data->background ? obs_weak_source_get_source(data->background)
+				 : NULL;
+
+	gs_effect_t *composite_effect = data->composite_effect;
+	if (source) {
+		const enum gs_color_space preferred_spaces[] = {
+			GS_CS_SRGB,
+			GS_CS_SRGB_16F,
+			GS_CS_709_EXTENDED,
+		};
+		const enum gs_color_space space = obs_source_get_color_space(
+			data->context, OBS_COUNTOF(preferred_spaces),
+			preferred_spaces);
+		const enum gs_color_format format =
+			gs_get_format_from_space(space);
+
+		// Set up a tex renderer for source
+		gs_texrender_t *source_render =
+			gs_texrender_create(format, GS_ZS_NONE);
+		uint32_t base_width = obs_source_get_base_width(source);
+		uint32_t base_height = obs_source_get_base_height(source);
+		gs_blend_state_push();
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
+		//set_blending_parameters();
+		if (gs_texrender_begin_with_color_space(
+			    source_render, base_width, base_height, space)) {
+			const float w = (float)base_width;
+			const float h = (float)base_height;
+			struct vec4 clear_color;
+
+			vec4_zero(&clear_color);
+			gs_clear(GS_CLEAR_COLOR, &clear_color, 0.0f, 0);
+			gs_ortho(0.0f, w, 0.0f, h, -100.0f, 100.0f);
+
+			obs_source_video_render(source);
+			gs_texrender_end(source_render);
+		}
+		gs_blend_state_pop();
+		obs_source_release(source);
+		gs_texture_t *tex = gs_texrender_get_texture(source_render);
+
+		if (data->param_background) {
+			gs_effect_set_texture_srgb(data->param_background, tex);
+		}
+		gs_eparam_t *image =
+			gs_effect_get_param_by_name(composite_effect, "image");
+		gs_effect_set_texture(image, texture);
+
+		data->composite_render =
+			create_or_reset_texrender(data->composite_render);
+
+		//set_blending_parameters();
+
+		//gs_blend_state_push();
+		//gs_blend_function(GS_BLEND_ONE, GS_BLEND_SRCALPHA);
+
+		//if (gs_texrender_begin(data->composite_render, data->width,
+		//		       data->height)) {
+		//	gs_ortho(0.0f, (float)data->width, 0.0f,
+		//		 (float)data->height, -100.0f, 100.0f);
+		//	while (gs_effect_loop(data->composite_effect, "Draw"))
+		//		gs_draw_sprite(texture, 0, data->width,
+		//			       data->height);
+		//	gs_texrender_end(data->composite_render);
+		//}
+		//texture = gs_texrender_get_texture(data->composite_render);
+		//gs_texrender_destroy(source_render);
+		//gs_blend_state_pop();
+
+		const enum gs_color_space context_space = obs_source_get_color_space(
+			data->context, OBS_COUNTOF(preferred_spaces),
+			preferred_spaces);
+		const enum gs_color_format context_format =
+			gs_get_format_from_space(context_space);
+
+		if (obs_source_process_filter_begin_with_color_space(
+			    data->context, context_format, context_space,
+			    OBS_ALLOW_DIRECT_RENDERING) &&
+		    gs_texrender_begin(data->composite_render, data->width,
+				       data->height)) {
+
+			set_blending_parameters();
+			//gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+			gs_ortho(0.0f, (float)data->width, 0.0f,
+				 (float)data->height, -100.0f, 100.0f);
+			obs_source_process_filter_end(data->context,
+						      composite_effect,
+						      data->width,
+						      data->height);
+			gs_texrender_end(data->composite_render);
+		}
+		texture = gs_texrender_get_texture(data->composite_render);
+		gs_texrender_destroy(source_render);
+		gs_blend_state_pop();
+	}
+	return texture;
+}
