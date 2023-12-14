@@ -1,8 +1,6 @@
 uniform float4x4 ViewProj;
 uniform texture2d image;
-uniform texture2d image2;
-
-uniform float ratio;
+uniform texture2d background;
 
 sampler_state textureSampler{
     Filter = Linear;
@@ -25,10 +23,11 @@ VertData mainTransform(VertData v_in)
 
 float4 mainImage(VertData v_in) : TARGET
 {
-    // 1. Sample incoming pixel
-    float4 c1 = image.Sample(textureSampler, v_in.uv);
-    float4 c2 = image2.Sample(textureSampler, v_in.uv);
-    return lerp(c1, c2, float4(ratio, ratio, ratio, ratio));
+    float4 img_col = image.Sample(textureSampler, v_in.uv);
+    float4 background_col = background.Sample(textureSampler, v_in.uv);
+    float a = img_col.a;
+    float3 color = img_col.rgb * a + background_col.rgb * (1.0 - a);
+    return float4(color.rgb, a);
 }
 
 technique Draw

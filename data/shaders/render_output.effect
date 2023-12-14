@@ -35,6 +35,7 @@ float3 srgb_nonlinear_to_linear(float3 v)
 float4 mainImage(VertData v_in) : TARGET
 {
 	float4 px = output_image.Sample(textureSampler, v_in.uv);
+	//px.xyz = px.a > 0.0 ? px.xyz : float3(0.0f, 0.0f, 0.0f);
 	px.xyz = srgb_nonlinear_to_linear(px.xyz);
 	return px;
 }

@@ -2,6 +2,7 @@
 
 uniform float4x4 ViewProj;
 uniform texture2d image;
+uniform texture2d background;
 
 uniform float2 uv_size;
 uniform float2 texel_step;
@@ -55,6 +56,32 @@ float4 mainImage(VertData v_in) : TARGET
     return col;
 }
 
+// An in-progress version of background compositing that should be more accurate,
+// but is currently causing some artifacting along the edges of the source.
+float4 mainImageComposite(VertData v_in) : TARGET
+{
+    // DO THE BLUR
+    // 1. Sample incoming pixel, multiply by weight[0]
+	float4 c = image.Sample(textureSampler, v_in.uv);
+	float4 bg_col = background.Sample(textureSampler, v_in.uv);
+	float4 col = float4(c.rgb * c.a + bg_col.rgb * (1.0 - c.a), c.a) * weightLookup(0);
+	float total_weight = weightLookup(0);
+
+    // 2. March out from incoming pixel, multiply by corresponding weight.
+	for (uint i = 1; i < kernel_size; i++)
+	{
+		float weight = weightLookup(i);
+		float offset = offsetLookup(i);
+		total_weight += 2.0 * weight;
+		c = image.Sample(textureSampler, v_in.uv + (offset * texel_step));
+		col += float4(c.rgb * c.a + bg_col.rgb * (1.0 - c.a), c.a) * weight;
+		c = image.Sample(textureSampler, v_in.uv - (offset * texel_step));
+		col += float4(c.rgb * c.a + bg_col.rgb * (1.0 - c.a), c.a) * weight;
+	}
+	col /= total_weight;
+	return col;
+}
+
 technique Draw
 {
     pass
@@ -62,4 +89,13 @@ technique Draw
         vertex_shader = mainTransform(v_in);
         pixel_shader = mainImage(v_in);
     }
+}
+
+technique DrawComposite
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = mainImageComposite(v_in);
+	}
 }
