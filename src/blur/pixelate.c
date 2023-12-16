@@ -1,4 +1,5 @@
 #include "pixelate.h"
+#include "dual_kawase.h"
 
 void set_pixelate_blur_types(obs_properties_t *props)
 {
@@ -36,12 +37,26 @@ void load_effect_pixelate(composite_blur_filter_data_t *filter)
 		load_pixelate_triangle_effect(filter);
 		break;
 	}
+	load_effect_dual_kawase(filter);
 }
 
 static void pixelate_square_blur(composite_blur_filter_data_t *data)
 {
-	gs_effect_t *effect = data->effect;
-	gs_texture_t *texture = gs_texrender_get_texture(data->input_texrender);
+	gs_effect_t *effect = data->pixelate_effect;
+
+	const float radius = (float)fmax((float)data->radius, 1.0f);
+
+	data->kawase_passes =
+		(int)(data->pixelate_smoothing_pct / 100.0f * radius);
+	render_video_dual_kawase(data);
+	data->pixelate_texrender =
+		create_or_reset_texrender(data->pixelate_texrender);
+
+	gs_texrender_t *tmp = data->pixelate_texrender;
+	data->pixelate_texrender = data->output_texrender;
+	data->output_texrender = tmp;
+
+	gs_texture_t *texture = gs_texrender_get_texture(data->pixelate_texrender);
 
 	if (!effect || !texture) {
 		return;
@@ -59,7 +74,6 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);
 
-	const float radius = (float)fmax((float)data->radius, 1.0f);
 	if (data->param_pixel_size) {
 		gs_effect_set_float(data->param_pixel_size, radius);
 	}
@@ -69,6 +83,31 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 	uv_size.y = (float)data->height;
 	if (data->param_uv_size) {
 		gs_effect_set_vec2(data->param_uv_size, &uv_size);
+	}
+
+	if (data->param_pixel_center) {
+		gs_effect_set_vec2(data->param_pixel_center,
+				   &data->pixelate_tessel_center);
+	}
+
+	if (data->param_pixel_cos_theta) {
+		gs_effect_set_float(data->param_pixel_cos_theta,
+				    data->pixelate_cos_theta);
+	}
+
+	if (data->param_pixel_cos_rtheta) {
+		gs_effect_set_float(data->param_pixel_cos_rtheta,
+				    data->pixelate_cos_rtheta);
+	}
+
+	if (data->param_pixel_sin_theta) {
+		gs_effect_set_float(data->param_pixel_sin_theta,
+				    data->pixelate_sin_theta);
+	}
+
+	if (data->param_pixel_sin_rtheta) {
+		gs_effect_set_float(data->param_pixel_sin_rtheta,
+				    data->pixelate_sin_rtheta);
 	}
 
 	data->output_texrender =
@@ -90,20 +129,41 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 
 static void load_pixelate_square_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->pixelate_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->pixelate_effect);
+		filter->pixelate_effect = NULL;
+		obs_leave_graphics();
+	}
+
 	const char *effect_file_path = "/shaders/pixelate_square.effect";
-	filter->effect = load_shader_effect(filter->effect, effect_file_path);
-	if (filter->effect) {
-		size_t effect_count = gs_effect_get_num_params(filter->effect);
+	filter->pixelate_effect =
+		load_shader_effect(filter->pixelate_effect, effect_file_path);
+	if (filter->pixelate_effect) {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->pixelate_effect);
 		for (size_t effect_index = 0; effect_index < effect_count;
 		     effect_index++) {
 			gs_eparam_t *param = gs_effect_get_param_by_idx(
-				filter->effect, effect_index);
+				filter->pixelate_effect, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
 			} else if (strcmp(info.name, "pixel_size") == 0) {
 				filter->param_pixel_size = param;
+			} else if (strcmp(info.name, "tess_origin") == 0) {
+				filter->param_pixel_center = param;
+			} else if (strcmp(info.name, "tess_rot") == 0) {
+				filter->param_pixel_rot = param;
+			} else if (strcmp(info.name, "cos_theta") == 0) {
+				filter->param_pixel_cos_theta = param;
+			} else if (strcmp(info.name, "sin_theta") == 0) {
+				filter->param_pixel_sin_theta = param;
+			} else if (strcmp(info.name, "cos_rtheta") == 0) {
+				filter->param_pixel_cos_rtheta = param;
+			} else if (strcmp(info.name, "sin_rtheta") == 0) {
+				filter->param_pixel_sin_rtheta = param;
 			}
 		}
 	}
@@ -111,20 +171,41 @@ static void load_pixelate_square_effect(composite_blur_filter_data_t *filter)
 
 static void load_pixelate_hexagonal_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->pixelate_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->pixelate_effect);
+		filter->pixelate_effect = NULL;
+		obs_leave_graphics();
+	}
+
 	const char *effect_file_path = "/shaders/pixelate_hexagonal.effect";
-	filter->effect = load_shader_effect(filter->effect, effect_file_path);
-	if (filter->effect) {
-		size_t effect_count = gs_effect_get_num_params(filter->effect);
+	filter->pixelate_effect =
+		load_shader_effect(filter->pixelate_effect, effect_file_path);
+	if (filter->pixelate_effect) {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->pixelate_effect);
 		for (size_t effect_index = 0; effect_index < effect_count;
 		     effect_index++) {
 			gs_eparam_t *param = gs_effect_get_param_by_idx(
-				filter->effect, effect_index);
+				filter->pixelate_effect, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
 			} else if (strcmp(info.name, "pixel_size") == 0) {
 				filter->param_pixel_size = param;
+			} else if (strcmp(info.name, "tess_origin") == 0) {
+				filter->param_pixel_center = param;
+			} else if (strcmp(info.name, "tess_rot") == 0) {
+				filter->param_pixel_rot = param;
+			} else if (strcmp(info.name, "cos_theta") == 0) {
+				filter->param_pixel_cos_theta = param;
+			} else if (strcmp(info.name, "sin_theta") == 0) {
+				filter->param_pixel_sin_theta = param;
+			} else if (strcmp(info.name, "cos_rtheta") == 0) {
+				filter->param_pixel_cos_rtheta = param;
+			} else if (strcmp(info.name, "sin_rtheta") == 0) {
+				filter->param_pixel_sin_rtheta = param;
 			}
 		}
 	}
@@ -132,20 +213,41 @@ static void load_pixelate_hexagonal_effect(composite_blur_filter_data_t *filter)
 
 static void load_pixelate_circle_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->pixelate_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->pixelate_effect);
+		filter->pixelate_effect = NULL;
+		obs_leave_graphics();
+	}
+
 	const char *effect_file_path = "/shaders/pixelate_circle.effect";
-	filter->effect = load_shader_effect(filter->effect, effect_file_path);
-	if (filter->effect) {
-		size_t effect_count = gs_effect_get_num_params(filter->effect);
+	filter->pixelate_effect =
+		load_shader_effect(filter->pixelate_effect, effect_file_path);
+	if (filter->pixelate_effect) {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->pixelate_effect);
 		for (size_t effect_index = 0; effect_index < effect_count;
 		     effect_index++) {
 			gs_eparam_t *param = gs_effect_get_param_by_idx(
-				filter->effect, effect_index);
+				filter->pixelate_effect, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
 			} else if (strcmp(info.name, "pixel_size") == 0) {
 				filter->param_pixel_size = param;
+			} else if (strcmp(info.name, "tess_origin") == 0) {
+				filter->param_pixel_center = param;
+			} else if (strcmp(info.name, "tess_rot") == 0) {
+				filter->param_pixel_rot = param;
+			} else if (strcmp(info.name, "cos_theta") == 0) {
+				filter->param_pixel_cos_theta = param;
+			} else if (strcmp(info.name, "sin_theta") == 0) {
+				filter->param_pixel_sin_theta = param;
+			} else if (strcmp(info.name, "cos_rtheta") == 0) {
+				filter->param_pixel_cos_rtheta = param;
+			} else if (strcmp(info.name, "sin_rtheta") == 0) {
+				filter->param_pixel_sin_rtheta = param;
 			}
 		}
 	}
@@ -153,20 +255,41 @@ static void load_pixelate_circle_effect(composite_blur_filter_data_t *filter)
 
 static void load_pixelate_triangle_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->pixelate_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->pixelate_effect);
+		filter->pixelate_effect = NULL;
+		obs_leave_graphics();
+	}
+
 	const char *effect_file_path = "/shaders/pixelate_triangle.effect";
-	filter->effect = load_shader_effect(filter->effect, effect_file_path);
-	if (filter->effect) {
-		size_t effect_count = gs_effect_get_num_params(filter->effect);
+	filter->pixelate_effect =
+		load_shader_effect(filter->pixelate_effect, effect_file_path);
+	if (filter->pixelate_effect) {
+		size_t effect_count =
+			gs_effect_get_num_params(filter->pixelate_effect);
 		for (size_t effect_index = 0; effect_index < effect_count;
 		     effect_index++) {
 			gs_eparam_t *param = gs_effect_get_param_by_idx(
-				filter->effect, effect_index);
+				filter->pixelate_effect, effect_index);
 			struct gs_effect_param_info info;
 			gs_effect_get_param_info(param, &info);
 			if (strcmp(info.name, "uv_size") == 0) {
 				filter->param_uv_size = param;
 			} else if (strcmp(info.name, "pixel_size") == 0) {
 				filter->param_pixel_size = param;
+			} else if (strcmp(info.name, "tess_origin") == 0) {
+				filter->param_pixel_center = param;
+			} else if (strcmp(info.name, "tess_rot") == 0) {
+				filter->param_pixel_rot = param;
+			} else if (strcmp(info.name, "cos_theta") == 0) {
+				filter->param_pixel_cos_theta = param;
+			} else if (strcmp(info.name, "sin_theta") == 0) {
+				filter->param_pixel_sin_theta = param;
+			} else if (strcmp(info.name, "cos_rtheta") == 0) {
+				filter->param_pixel_cos_rtheta = param;
+			} else if (strcmp(info.name, "sin_rtheta") == 0) {
+				filter->param_pixel_sin_rtheta = param;
 			}
 		}
 	}

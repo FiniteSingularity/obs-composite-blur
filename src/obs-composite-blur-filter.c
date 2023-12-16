@@ -1,4 +1,5 @@
 #include "obs-composite-blur-filter.h"
+#include <util/dstr.h>
 
 #include "blur/gaussian.h"
 #include "blur/box.h"
@@ -23,7 +24,8 @@ struct obs_source_info obs_composite_blur = {
 static const char *composite_blur_name(void *unused)
 {
 	UNUSED_PARAMETER(unused);
-	return obs_module_text("CompositeBlurFilter");
+	return "Composite Blur";
+	//return obs_module_text("CompositeBlurFilter");
 }
 
 static void composite_blur_defaults(obs_data_t *settings)
@@ -39,6 +41,8 @@ static void composite_blur_defaults(obs_data_t *settings)
 		obs_module_text("CompositeBlurFilter.EffectMask.Source.None"));
 	obs_data_set_default_double(
 		settings, "effect_mask_source_filter_multiplier", 1.0);
+	obs_data_set_default_double(settings, "pixelate_origin_x", -1.e9);
+	obs_data_set_default_double(settings, "pixelate_origin_y", -1.e9);
 	obs_data_set_default_double(settings, "effect_mask_circle_center_x",
 				    50.0);
 	obs_data_set_default_double(settings, "effect_mask_circle_center_y",
@@ -63,7 +67,12 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 {
 	composite_blur_filter_data_t *filter =
 		bzalloc(sizeof(composite_blur_filter_data_t));
+	dstr_init_copy(&filter->filter_name, "");
+
 	filter->context = source;
+	signal_handler_t *sh = obs_source_get_signal_handler(filter->context);
+	signal_handler_connect_ref(sh, "rename", composite_blur_rename, filter);
+	filter->hotkey = OBS_INVALID_HOTKEY_PAIR_ID;
 	filter->radius = 0.0f;
 	filter->radius_last = -1.0f;
 	filter->angle = 0.0f;
@@ -98,6 +107,13 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->param_focus_angle = NULL;
 	filter->param_background = NULL;
 	filter->param_pixel_size = NULL;
+
+	filter->param_pixel_center = NULL;
+	filter->param_pixel_rot = NULL;
+	filter->param_pixel_cos_theta = NULL;
+	filter->param_pixel_sin_theta = NULL;
+	filter->param_pixel_cos_rtheta = NULL;
+	filter->param_pixel_sin_rtheta = NULL;
 	filter->param_mask_crop_scale = NULL;
 	filter->param_mask_crop_offset = NULL;
 	filter->param_mask_crop_box_aspect_ratio = NULL;
@@ -153,6 +169,10 @@ static void composite_blur_destroy(void *data)
 {
 	composite_blur_filter_data_t *filter = data;
 
+	signal_handler_t *sh = obs_source_get_signal_handler(filter->context);
+	signal_handler_disconnect(sh, "rename", composite_blur_rename, filter);
+
+	dstr_free(&filter->filter_name);
 	obs_enter_graphics();
 	if (filter->effect) {
 		gs_effect_destroy(filter->effect);
@@ -168,6 +188,9 @@ static void composite_blur_destroy(void *data)
 	}
 	if (filter->effect_mask_effect) {
 		gs_effect_destroy(filter->effect_mask_effect);
+	}
+	if (filter->pixelate_effect) {
+		gs_effect_destroy(filter->pixelate_effect);
 	}
 	if (filter->output_effect) {
 		gs_effect_destroy(filter->output_effect);
@@ -190,6 +213,9 @@ static void composite_blur_destroy(void *data)
 	if (filter->composite_render) {
 		gs_texrender_destroy(filter->composite_render);
 	}
+	if (filter->pixelate_texrender) {
+		gs_texrender_destroy(filter->pixelate_texrender);
+	}
 
 	if (filter->kernel_texture) {
 		gs_texture_destroy(filter->kernel_texture);
@@ -205,6 +231,10 @@ static void composite_blur_destroy(void *data)
 
 	if (filter->mask_source_source) {
 		obs_weak_source_release(filter->mask_source_source);
+	}
+
+	if (filter->hotkey != OBS_INVALID_HOTKEY_PAIR_ID) {
+		obs_hotkey_pair_unregister(filter->hotkey);
 	}
 
 	da_free(filter->offset);
@@ -226,9 +256,40 @@ static uint32_t composite_blur_height(void *data)
 	return filter->height;
 }
 
+static void composite_blur_rename(void *data, calldata_t *call_data)
+{
+	composite_blur_filter_data_t *filter = data;
+	const char *new_name = calldata_string(call_data, "new_name");
+
+	dstr_copy(&filter->filter_name, new_name);
+	struct dstr enable;
+	struct dstr disable;
+
+	dstr_init_copy(&enable, obs_module_text("CompositeBlurFilter.Enable"));
+	dstr_init_copy(&disable,
+		       obs_module_text("CompositeBlurFilter.Disable"));
+	dstr_cat(&enable, " ");
+	dstr_cat(&enable, new_name);
+	dstr_cat(&disable, " ");
+	dstr_cat(&disable, new_name);
+	obs_hotkey_pair_set_descriptions(filter->hotkey, enable.array,
+					 disable.array);
+	dstr_free(&enable);
+	dstr_free(&disable);
+}
+
 static void composite_blur_update(void *data, obs_data_t *settings)
 {
 	struct composite_blur_filter_data *filter = data;
+
+	if (filter->width > 0 &&
+	    (float)obs_data_get_double(settings, "pixelate_origin_x") < -1.e8) {
+		double width = (double)obs_source_get_width(filter->context);
+		double height = (double)obs_source_get_height(filter->context);
+		obs_data_set_double(settings, "pixelate_origin_x", width / 2.0);
+		obs_data_set_double(settings, "pixelate_origin_y",
+				    height / 2.0);
+	}
 
 	filter->blur_algorithm =
 		(int)obs_data_get_int(settings, "blur_algorithm");
@@ -252,6 +313,24 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		filter->pixelate_type_last = filter->pixelate_type;
 		filter->reload = true;
 	}
+
+	filter->pixelate_smoothing_pct =
+		(float)obs_data_get_double(settings, "pixelate_smoothing_pct");
+
+	filter->pixelate_tessel_center.x =
+		(float)obs_data_get_double(settings, "pixelate_origin_x");
+
+	filter->pixelate_tessel_center.y =
+		(float)obs_data_get_double(settings, "pixelate_origin_y");
+
+	const double theta =
+		M_PI *
+		(float)obs_data_get_double(settings, "pixelate_rotation") /
+		180.0;
+	filter->pixelate_cos_theta = (float)cos(theta);
+	filter->pixelate_sin_theta = (float)sin(theta);
+	filter->pixelate_sin_rtheta = (float)sin(-theta);
+	filter->pixelate_cos_rtheta = (float)cos(-theta);
 
 	filter->mask_type = (int)obs_data_get_int(settings, "effect_mask");
 	filter->mask_crop_top =
@@ -448,7 +527,8 @@ static void get_input_source(composite_blur_filter_data_t *filter)
 		// the colors back into non-pre-multiplied space.
 		obs_source_process_filter_tech_end(filter->context,
 						   pass_through, filter->width,
-						   filter->height, "DrawAlphaDivide");
+						   filter->height,
+						   "DrawAlphaDivide");
 		gs_texrender_end(filter->input_texrender);
 		gs_blend_state_pop();
 	}
@@ -994,6 +1074,26 @@ static obs_properties_t *composite_blur_properties(void *data)
 		props, "radius", obs_module_text("CompositeBlurFilter.Radius"),
 		0.0, 80.1, 0.1);
 
+	obs_properties_add_float_slider(
+		props, "pixelate_smoothing_pct",
+		obs_module_text("CompositeBlurFilter.Pixelate.Smoothing"), 0.0,
+		100.0, 0.1);
+
+	obs_properties_add_float_slider(
+		props, "pixelate_origin_x",
+		obs_module_text("CompositeBlurFilter.Pixelate.Origin_X"),
+		-6000.0, 6000.0, 0.1);
+
+	obs_properties_add_float_slider(
+		props, "pixelate_origin_y",
+		obs_module_text("CompositeBlurFilter.Pixelate.Origin_Y"),
+		-6000.0, 6000.0, 0.1);
+
+	obs_properties_add_float_slider(
+		props, "pixelate_rotation",
+		obs_module_text("CompositeBlurFilter.Pixelate.Rotation"),
+		-360.0, 360.0, 0.1);
+
 	obs_properties_add_int_slider(
 		props, "passes",
 		obs_module_text("CompositeBlurFilter.Box.Passes"), 1, 5, 1);
@@ -1424,6 +1524,10 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("kawase_passes", false, props);
 		setting_visibility("blur_type", true, props);
 		setting_visibility("pixelate_type", false, props);
+		setting_visibility("pixelate_smoothing_pct", false, props);
+		setting_visibility("pixelate_rotation", false, props);
+		setting_visibility("pixelate_origin_x", false, props);
+		setting_visibility("pixelate_origin_y", false, props);
 		set_blur_radius_settings(
 			obs_module_text("CompositeBlurFilter.Radius"), 0.0f,
 			80.01f, 0.1f, props);
@@ -1435,6 +1539,10 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("passes", true, props);
 		setting_visibility("blur_type", true, props);
 		setting_visibility("pixelate_type", false, props);
+		setting_visibility("pixelate_smoothing_pct", false, props);
+		setting_visibility("pixelate_rotation", false, props);
+		setting_visibility("pixelate_origin_x", false, props);
+		setting_visibility("pixelate_origin_y", false, props);
 		set_blur_radius_settings(
 			obs_module_text("CompositeBlurFilter.Radius"), 0.0f,
 			100.01f, 0.1f, props);
@@ -1446,6 +1554,10 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("kawase_passes", true, props);
 		setting_visibility("blur_type", false, props);
 		setting_visibility("pixelate_type", false, props);
+		setting_visibility("pixelate_smoothing_pct", false, props);
+		setting_visibility("pixelate_rotation", false, props);
+		setting_visibility("pixelate_origin_x", false, props);
+		setting_visibility("pixelate_origin_y", false, props);
 		set_dual_kawase_blur_types(props);
 		obs_data_set_int(settings, "blur_type", TYPE_AREA);
 		settings_blur_area(props, settings);
@@ -1456,6 +1568,10 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("kawase_passes", false, props);
 		setting_visibility("blur_type", false, props);
 		setting_visibility("pixelate_type", true, props);
+		setting_visibility("pixelate_smoothing_pct", true, props);
+		setting_visibility("pixelate_rotation", true, props);
+		setting_visibility("pixelate_origin_x", true, props);
+		setting_visibility("pixelate_origin_y", true, props);
 		set_blur_radius_settings(
 			obs_module_text(
 				"CompositeBlurFilter.Pixelate.PixelSize"),
@@ -1548,6 +1664,37 @@ static bool settings_blur_tilt_shift(obs_properties_t *props)
 	return true;
 }
 
+bool composite_blur_enable_hotkey(void *data, obs_hotkey_pair_id id,
+				  obs_hotkey_t *hotkey, bool pressed)
+{
+	UNUSED_PARAMETER(id);
+	UNUSED_PARAMETER(hotkey);
+	composite_blur_filter_data_t *filter = data;
+	if (!pressed)
+		return false;
+
+	if (obs_source_enabled(filter->context))
+		return false;
+	obs_source_set_enabled(filter->context, true);
+
+	return true;
+}
+
+bool composite_blur_disable_hotkey(void *data, obs_hotkey_pair_id id,
+				   obs_hotkey_t *hotkey, bool pressed)
+{
+	UNUSED_PARAMETER(id);
+	UNUSED_PARAMETER(hotkey);
+	composite_blur_filter_data_t *filter = data;
+	if (!pressed)
+		return false;
+	if (!obs_source_enabled(filter->context))
+		return false;
+	obs_source_set_enabled(filter->context, false);
+
+	return true;
+}
+
 static void composite_blur_video_tick(void *data, float seconds)
 {
 	UNUSED_PARAMETER(seconds);
@@ -1556,6 +1703,35 @@ static void composite_blur_video_tick(void *data, float seconds)
 	if (!target) {
 		return;
 	}
+	if (filter->hotkey == OBS_INVALID_HOTKEY_PAIR_ID) {
+		obs_source_t *parent = obs_filter_get_parent(filter->context);
+		if (parent) {
+			const char *filter_name =
+				obs_source_get_name(filter->context);
+			struct dstr enable;
+			struct dstr disable;
+
+			dstr_init_copy(
+				&enable,
+				obs_module_text("CompositeBlurFilter.Enable"));
+			dstr_init_copy(
+				&disable,
+				obs_module_text("CompositeBlurFilter.Disable"));
+			dstr_cat(&enable, " ");
+			dstr_cat(&enable, filter_name);
+			dstr_cat(&disable, " ");
+			dstr_cat(&disable, filter_name);
+
+			filter->hotkey = obs_hotkey_pair_register_source(
+				parent, "CompositeBlur.Enable", enable.array,
+				"CompositeBlur.Disable", disable.array,
+				composite_blur_enable_hotkey,
+				composite_blur_disable_hotkey, filter, filter);
+			dstr_free(&enable);
+			dstr_free(&disable);
+		}
+	}
+
 	filter->width = (uint32_t)obs_source_get_base_width(target);
 	filter->height = (uint32_t)obs_source_get_base_height(target);
 	filter->uv_size.x = (float)filter->width;
@@ -1884,7 +2060,7 @@ static void load_output_effect(composite_blur_filter_data_t *filter)
 	}
 }
 
-void get_background(composite_blur_filter_data_t* data)
+void get_background(composite_blur_filter_data_t *data)
 {
 	// Get source
 	obs_source_t *source =
@@ -1904,14 +2080,16 @@ void get_background(composite_blur_filter_data_t* data)
 		// const enum gs_color_format format =
 		// 	gs_get_format_from_space(space);
 
-		data->background_texrender = create_or_reset_texrender(data->background_texrender);
+		data->background_texrender =
+			create_or_reset_texrender(data->background_texrender);
 		uint32_t base_width = obs_source_get_base_width(source);
 		uint32_t base_height = obs_source_get_base_height(source);
 		gs_blend_state_push();
 		gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
 		//set_blending_parameters();
 		if (gs_texrender_begin_with_color_space(
-			    data->background_texrender, base_width, base_height, space)) {
+			    data->background_texrender, base_width, base_height,
+			    space)) {
 			const float w = (float)base_width;
 			const float h = (float)base_height;
 			struct vec4 clear_color;
@@ -2002,9 +2180,10 @@ gs_texture_t *blend_composite(gs_texture_t *texture,
 		//gs_texrender_destroy(source_render);
 		//gs_blend_state_pop();
 
-		const enum gs_color_space context_space = obs_source_get_color_space(
-			data->context, OBS_COUNTOF(preferred_spaces),
-			preferred_spaces);
+		const enum gs_color_space context_space =
+			obs_source_get_color_space(
+				data->context, OBS_COUNTOF(preferred_spaces),
+				preferred_spaces);
 		const enum gs_color_format context_format =
 			gs_get_format_from_space(context_space);
 

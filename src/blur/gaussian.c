@@ -419,6 +419,13 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 
 static void load_1d_gaussian_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->effect);
+		filter->effect = NULL;
+		obs_leave_graphics();
+	}
+
 	const char *effect_file_path =
 		filter->device_type == GS_DEVICE_DIRECT3D_11
 			? "/shaders/gaussian_1d.effect"
@@ -453,10 +460,18 @@ static void load_1d_gaussian_effect(composite_blur_filter_data_t *filter)
 static void load_motion_gaussian_effect(composite_blur_filter_data_t *filter)
 {
 
+	if (filter->effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->effect);
+		filter->effect = NULL;
+		obs_leave_graphics();
+	}
+
 	const char *effect_file_path =
 		filter->device_type == GS_DEVICE_DIRECT3D_11
 			? "/shaders/gaussian_motion.effect"
 			: "/shaders/gaussian_motion_texture.effect";
+
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
 		size_t effect_count = gs_effect_get_num_params(filter->effect);
@@ -485,10 +500,18 @@ static void load_motion_gaussian_effect(composite_blur_filter_data_t *filter)
 
 static void load_radial_gaussian_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->effect);
+		filter->effect = NULL;
+		obs_leave_graphics();
+	}
+
 	const char *effect_file_path =
 		filter->device_type == GS_DEVICE_DIRECT3D_11
 			? "/shaders/gaussian_radial.effect"
 			: "/shaders/gaussian_radial_texture.effect";
+
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {
 		size_t effect_count = gs_effect_get_num_params(filter->effect);

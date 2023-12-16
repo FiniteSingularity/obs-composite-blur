@@ -190,6 +190,12 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 static void
 load_dual_kawase_down_sample_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->effect_2 != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->effect_2);
+		filter->effect_2 = NULL;
+		obs_leave_graphics();
+	}
 	const char *effect_file_path =
 		"/shaders/dual_kawase_down_sample.effect";
 	filter->effect_2 =
@@ -213,6 +219,13 @@ load_dual_kawase_down_sample_effect(composite_blur_filter_data_t *filter)
 static void
 load_dual_kawase_up_sample_effect(composite_blur_filter_data_t *filter)
 {
+	if (filter->effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->effect);
+		filter->effect = NULL;
+		obs_leave_graphics();
+	}
+
 	const char *effect_file_path = "/shaders/dual_kawase_up_sample.effect";
 	filter->effect = load_shader_effect(filter->effect, effect_file_path);
 	if (filter->effect) {

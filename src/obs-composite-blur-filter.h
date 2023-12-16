@@ -84,11 +84,13 @@ typedef struct composite_blur_filter_data composite_blur_filter_data_t;
 
 struct composite_blur_filter_data {
 	obs_source_t *context;
+	struct dstr filter_name;
 
 	// Effects
 	gs_effect_t *effect;
 	gs_effect_t *effect_2;
 	gs_effect_t *composite_effect;
+	gs_effect_t *pixelate_effect;
 	gs_effect_t *mix_effect;
 	gs_effect_t *effect_mask_effect;
 	gs_effect_t *output_effect;
@@ -104,6 +106,8 @@ struct composite_blur_filter_data {
 	gs_texrender_t *background_texrender;
 	// Renderer for composite render step
 	gs_texrender_t *composite_render;
+
+	obs_hotkey_pair_id hotkey;
 
 	bool rendering;
 	bool reload;
@@ -140,9 +144,23 @@ struct composite_blur_filter_data {
 	int kawase_passes;
 
 	// Pixelate Blur
-	gs_eparam_t *param_pixel_size;
 	int pixelate_type;
 	int pixelate_type_last;
+	struct vec2 pixelate_tessel_center;
+	float pixelate_tessel_rot;
+	float pixelate_smoothing_pct;
+	float pixelate_cos_theta;
+	float pixelate_sin_theta;
+	float pixelate_cos_rtheta;
+	float pixelate_sin_rtheta;
+	gs_eparam_t *param_pixel_size;
+	gs_eparam_t *param_pixel_center;
+	gs_eparam_t *param_pixel_rot;
+	gs_eparam_t *param_pixel_cos_theta;
+	gs_eparam_t *param_pixel_sin_theta;
+	gs_eparam_t *param_pixel_cos_rtheta;
+	gs_eparam_t *param_pixel_sin_rtheta;
+	gs_texrender_t *pixelate_texrender;
 
 	// Radial Blur
 	gs_eparam_t *param_radial_center;
@@ -163,7 +181,6 @@ struct composite_blur_filter_data {
 	// Compositing
 	gs_eparam_t *param_background;
 	obs_weak_source_t *background;
-
 
 	// Mask
 	int mask_type;
@@ -233,6 +250,7 @@ static void composite_blur_defaults(obs_data_t *settings);
 static void composite_blur_destroy(void *data);
 static uint32_t composite_blur_width(void *data);
 static uint32_t composite_blur_height(void *data);
+static void composite_blur_rename(void *data, calldata_t *call_data);
 static void composite_blur_update(void *data, obs_data_t *settings);
 static void composite_blur_video_render(void *data, gs_effect_t *effect);
 static void composite_blur_video_tick(void *data, float seconds);

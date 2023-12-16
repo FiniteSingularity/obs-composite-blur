@@ -9,6 +9,11 @@ uniform texture2d image;
 
 uniform float2 uv_size;
 uniform float pixel_size;
+uniform float2 tess_origin;
+uniform float sin_theta;
+uniform float cos_theta;
+uniform float sin_rtheta;
+uniform float cos_rtheta;
 
 sampler_state textureSampler{
     Filter = Linear;
@@ -75,8 +80,9 @@ float4 mainImage(VertData v_in) : TARGET
     // // 1. Sample incoming pixel
     float2 coord = v_in.uv * uv_size;
     // float2 uv_prime = (coord - fmod(coord, pixel_size)) / uv_size;
-
-    float2 local_coord = coord;
+    
+    float2 local_coord = coord - tess_origin; // Shifted box coordinate
+	local_coord = float2(local_coord.x * cos_theta - local_coord.y * sin_theta, local_coord.x * sin_theta + local_coord.y * cos_theta);
 	if(orientation == FLAT) {
 		local_coord = reverseCoords(coord);
 	}
@@ -87,7 +93,7 @@ float4 mainImage(VertData v_in) : TARGET
 		frame_nearest = reverseCoords(local_nearest);
 	}
 
-    float2 uv_prime = (local_nearest) / uv_size;
+	float2 uv_prime = (float2(frame_nearest.x * cos_rtheta - frame_nearest.y * sin_rtheta, frame_nearest.x * sin_rtheta + frame_nearest.y * cos_rtheta) + tess_origin) / uv_size;
 
     return image.Sample(textureSampler, uv_prime);
 }
