@@ -282,15 +282,6 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 {
 	struct composite_blur_filter_data *filter = data;
 
-	if (filter->width > 0 &&
-	    (float)obs_data_get_double(settings, "pixelate_origin_x") < -1.e8) {
-		double width = (double)obs_source_get_width(filter->context);
-		double height = (double)obs_source_get_height(filter->context);
-		obs_data_set_double(settings, "pixelate_origin_x", width / 2.0);
-		obs_data_set_double(settings, "pixelate_origin_y",
-				    height / 2.0);
-	}
-
 	filter->blur_algorithm =
 		(int)obs_data_get_int(settings, "blur_algorithm");
 
@@ -1731,11 +1722,24 @@ static void composite_blur_video_tick(void *data, float seconds)
 			dstr_free(&disable);
 		}
 	}
+	const uint32_t width = (uint32_t)obs_source_get_base_width(target);
+	const uint32_t height = (uint32_t)obs_source_get_base_height(target);
+	if(filter->width != width || filter->height != height) {
+		filter->width = (uint32_t)obs_source_get_base_width(target);
+		filter->height = (uint32_t)obs_source_get_base_height(target);
+		filter->uv_size.x = (float)filter->width;
+		filter->uv_size.y = (float)filter->height;
+		obs_data_t *settings = obs_source_get_settings(filter->context);
+		if (filter->width > 0 &&
+			(float)obs_data_get_double(settings, "pixelate_origin_x") < -1.e8) {
+				obs_data_set_double(settings, "pixelate_origin_x", (double)width / 2.0);
+				obs_data_set_double(settings, "pixelate_origin_y",
+						(double)height / 2.0);
+				filter->pixelate_tessel_center.x = (float)width / 2.0f;
+				filter->pixelate_tessel_center.y = (float)height / 2.0f;
+		}
+	}
 
-	filter->width = (uint32_t)obs_source_get_base_width(target);
-	filter->height = (uint32_t)obs_source_get_base_height(target);
-	filter->uv_size.x = (float)filter->width;
-	filter->uv_size.y = (float)filter->height;
 	filter->rendered = false;
 }
 

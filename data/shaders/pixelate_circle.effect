@@ -1,3 +1,8 @@
+// Create MOD function that acts like glsl mod, rather than HLSL's fmod.
+// Necessary to have consistent pattern tiling in both OGL systems (mac/linux)
+// and DirectX systems (windows)
+#define MOD(x, y) (x - y * floor(x / y))
+
 uniform float4x4 ViewProj;
 uniform texture2d image;
 
@@ -30,15 +35,14 @@ VertData mainTransform(VertData v_in)
 
 float4 mainImage(VertData v_in) : TARGET
 {
-    // 1. Sample incoming pixel
+    // 1. Sample incoming pixel  
     float2 coord = v_in.uv * uv_size;
     float2 coord_p = coord - tess_origin; // Shifted box coordinate
     coord_p = float2(coord_p.x * cos_theta - coord_p.y * sin_theta, coord_p.x * sin_theta + coord_p.y * cos_theta);
-    float2 coord_grid = (coord_p - fmod(coord_p, pixel_size)) + sign(coord_p) *
-                           float2(pixel_size, pixel_size) / 2.0f;
-	
-    float2 uv_prime = (float2(coord_grid.x * cos_rtheta - coord_grid.y * sin_rtheta, coord_grid.x * sin_rtheta + coord_grid.y * cos_rtheta) + tess_origin) / uv_size;
-    return distance(coord_grid, coord_p) <= pixel_size/2.0f ? image.Sample(textureSampler, uv_prime) : float4(0.0, 0.0, 0.0, 0.0);
+    float2 coord_grid = (coord_p - MOD(coord_p, pixel_size) + 
+                           float2(pixel_size, pixel_size) / 2.0f);
+    float2 uv_prime = (float2(coord_grid.x * cos_rtheta - coord_grid.y * sin_rtheta, coord_grid.x * sin_rtheta + coord_grid.y * cos_rtheta) + tess_origin)/uv_size;
+    return distance(coord_grid, coord_p) <= pixel_size/2.0f ? image.Sample(textureSampler, uv_prime) : float4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 technique Draw
