@@ -281,7 +281,6 @@ static void composite_blur_rename(void *data, calldata_t *call_data)
 static void composite_blur_update(void *data, obs_data_t *settings)
 {
 	struct composite_blur_filter_data *filter = data;
-	double v = (float)obs_data_get_double(settings, "pixelate_origin_x");
 
 	if (filter->width > 0 &&
 	    (float)obs_data_get_double(settings, "pixelate_origin_x") < -1.e8) {
