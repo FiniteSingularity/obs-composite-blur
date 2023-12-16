@@ -1,4 +1,5 @@
 #include "obs-composite-blur-filter.h"
+#include <util/dstr.h>
 
 #include "blur/gaussian.h"
 #include "blur/box.h"
@@ -23,7 +24,8 @@ struct obs_source_info obs_composite_blur = {
 static const char *composite_blur_name(void *unused)
 {
 	UNUSED_PARAMETER(unused);
-	return obs_module_text("CompositeBlurFilter");
+	return "Composite Blur";
+	//return obs_module_text("CompositeBlurFilter");
 }
 
 static void composite_blur_defaults(obs_data_t *settings)
@@ -65,7 +67,12 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 {
 	composite_blur_filter_data_t *filter =
 		bzalloc(sizeof(composite_blur_filter_data_t));
+	dstr_init_copy(&filter->filter_name, "");
+
 	filter->context = source;
+	signal_handler_t *sh = obs_source_get_signal_handler(filter->context);
+	signal_handler_connect_ref(sh, "rename", composite_blur_rename, filter);
+	filter->hotkey = OBS_INVALID_HOTKEY_PAIR_ID;
 	filter->radius = 0.0f;
 	filter->radius_last = -1.0f;
 	filter->angle = 0.0f;
@@ -162,6 +169,10 @@ static void composite_blur_destroy(void *data)
 {
 	composite_blur_filter_data_t *filter = data;
 
+	signal_handler_t *sh = obs_source_get_signal_handler(filter->context);
+	signal_handler_disconnect(sh, "rename", composite_blur_rename, filter);
+
+	dstr_free(&filter->filter_name);
 	obs_enter_graphics();
 	if (filter->effect) {
 		gs_effect_destroy(filter->effect);
@@ -222,6 +233,10 @@ static void composite_blur_destroy(void *data)
 		obs_weak_source_release(filter->mask_source_source);
 	}
 
+	if (filter->hotkey != OBS_INVALID_HOTKEY_PAIR_ID) {
+		obs_hotkey_pair_unregister(filter->hotkey);
+	}
+
 	da_free(filter->offset);
 	da_free(filter->kernel);
 
@@ -241,10 +256,33 @@ static uint32_t composite_blur_height(void *data)
 	return filter->height;
 }
 
+static void composite_blur_rename(void *data, calldata_t *call_data)
+{
+	composite_blur_filter_data_t *filter = data;
+	const char *new_name = calldata_string(call_data, "new_name");
+
+	dstr_copy(&filter->filter_name, new_name);
+	struct dstr enable;
+	struct dstr disable;
+
+	dstr_init_copy(&enable, obs_module_text("CompositeBlurFilter.Enable"));
+	dstr_init_copy(&disable,
+		       obs_module_text("CompositeBlurFilter.Disable"));
+	dstr_cat(&enable, " ");
+	dstr_cat(&enable, new_name);
+	dstr_cat(&disable, " ");
+	dstr_cat(&disable, new_name);
+	obs_hotkey_pair_set_descriptions(filter->hotkey, enable.array,
+					 disable.array);
+	dstr_free(&enable);
+	dstr_free(&disable);
+}
+
 static void composite_blur_update(void *data, obs_data_t *settings)
 {
 	struct composite_blur_filter_data *filter = data;
 	double v = (float)obs_data_get_double(settings, "pixelate_origin_x");
+
 	if (filter->width > 0 &&
 	    (float)obs_data_get_double(settings, "pixelate_origin_x") < -1.e8) {
 		double width = (double)obs_source_get_width(filter->context);
@@ -1042,8 +1080,6 @@ static obs_properties_t *composite_blur_properties(void *data)
 		obs_module_text("CompositeBlurFilter.Pixelate.Smoothing"), 0.0,
 		100.0, 0.1);
 
-	obs_properties_t *pixelate_origin_group = obs_properties_create();
-
 	obs_properties_add_float_slider(
 		props, "pixelate_origin_x",
 		obs_module_text("CompositeBlurFilter.Pixelate.Origin_X"),
@@ -1629,6 +1665,37 @@ static bool settings_blur_tilt_shift(obs_properties_t *props)
 	return true;
 }
 
+bool composite_blur_enable_hotkey(void *data, obs_hotkey_pair_id id,
+				  obs_hotkey_t *hotkey, bool pressed)
+{
+	UNUSED_PARAMETER(id);
+	UNUSED_PARAMETER(hotkey);
+	composite_blur_filter_data_t *filter = data;
+	if (!pressed)
+		return false;
+
+	if (obs_source_enabled(filter->context))
+		return false;
+	obs_source_set_enabled(filter->context, true);
+
+	return true;
+}
+
+bool composite_blur_disable_hotkey(void *data, obs_hotkey_pair_id id,
+				   obs_hotkey_t *hotkey, bool pressed)
+{
+	UNUSED_PARAMETER(id);
+	UNUSED_PARAMETER(hotkey);
+	composite_blur_filter_data_t *filter = data;
+	if (!pressed)
+		return false;
+	if (!obs_source_enabled(filter->context))
+		return false;
+	obs_source_set_enabled(filter->context, false);
+
+	return true;
+}
+
 static void composite_blur_video_tick(void *data, float seconds)
 {
 	UNUSED_PARAMETER(seconds);
@@ -1637,6 +1704,35 @@ static void composite_blur_video_tick(void *data, float seconds)
 	if (!target) {
 		return;
 	}
+	if (filter->hotkey == OBS_INVALID_HOTKEY_PAIR_ID) {
+		obs_source_t *parent = obs_filter_get_parent(filter->context);
+		if (parent) {
+			const char *filter_name =
+				obs_source_get_name(filter->context);
+			struct dstr enable;
+			struct dstr disable;
+
+			dstr_init_copy(
+				&enable,
+				obs_module_text("CompositeBlurFilter.Enable"));
+			dstr_init_copy(
+				&disable,
+				obs_module_text("CompositeBlurFilter.Disable"));
+			dstr_cat(&enable, " ");
+			dstr_cat(&enable, filter_name);
+			dstr_cat(&disable, " ");
+			dstr_cat(&disable, filter_name);
+
+			filter->hotkey = obs_hotkey_pair_register_source(
+				parent, "CompositeBlur.Enable", enable.array,
+				"CompositeBlur.Disable", disable.array,
+				composite_blur_enable_hotkey,
+				composite_blur_disable_hotkey, filter, filter);
+			dstr_free(&enable);
+			dstr_free(&disable);
+		}
+	}
+
 	filter->width = (uint32_t)obs_source_get_base_width(target);
 	filter->height = (uint32_t)obs_source_get_base_height(target);
 	filter->uv_size.x = (float)filter->width;
