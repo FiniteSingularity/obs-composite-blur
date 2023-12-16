@@ -1735,8 +1735,8 @@ static void composite_blur_video_tick(void *data, float seconds)
 				obs_data_set_double(settings, "pixelate_origin_x", (double)width / 2.0);
 				obs_data_set_double(settings, "pixelate_origin_y",
 						(double)height / 2.0);
-				filter->pixelate_tessel_center.x = (double)width / 2.0;
-				filter->pixelate_tessel_center.y = (double)height / 2.0;
+				filter->pixelate_tessel_center.x = (float)width / 2.0f;
+				filter->pixelate_tessel_center.y = (float)height / 2.0f;
 		}
 	}
 
