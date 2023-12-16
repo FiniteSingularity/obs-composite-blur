@@ -22,6 +22,10 @@
     </a>
 </h4>
 
+> **IMPORTANT RECENT RELEASE NOTES**
+> - In the 1.1.0 release, I have decided to leave the plug-in name (in the add filter list) as the english version of the name even in cases where there is a localization/translation file. This is so that the finding the filter matches the documentation here. If you were using a pre-1.1.0 version with either German, Spanish, or Finnish localization, note that the plug in name will now show up as "Composite Blur" instead of being translated.
+> - Another potentially breaking change in 1.1.0- if you were using the background for compositing option and had set the blending method to `SRGB Off`, you may notice a light halo around the blurred source. Simply switch the blending method back to `Default` to fix this.
+
 > **Note**
 > While we only release new versions of Composite Blur after testing it on local hardware, there are bugs and issues that will slip through. If you happen to run into any issues, please [open an issue](https://github.com/finitesingularity/obs-composite-blur/issues) and we will work to resolve it.
 
@@ -118,9 +122,6 @@ Blurring sources that have different dimensions than the canvas can be difficult
 
 ![Background Composite Source Example](.github/assets/background-composite.png)
 *An example with and without background source compositing. Notice the dark halo around the non-composited facecam, versus the smooth and more natural blurring into the background when a background source is provided.*
-
-> **Warning**
-> There is currently a bug that requires composite background enabled sources to set their blending method to SRGB Off if the source is cropped in OBS.  To do this, right click the source, and select 'SRGB Off' under `Blending Method`
 
 ## Effect Masking
 Composite Blur offers a variety of ways to mask where and how blur is applied to your source. For all mask options, the mask can also be inverted by checking the "Invert Mask" box. The following options are available.
