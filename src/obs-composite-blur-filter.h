@@ -41,6 +41,8 @@
 #define TYPE_MOTION_LABEL "CompositeBlurFilter.Type.Motion"
 #define TYPE_TILTSHIFT 5
 #define TYPE_TILTSHIFT_LABEL "CompositeBlurFilter.Type.TiltShift"
+#define TYPE_VECTOR 6
+#define TYPE_VECTOR_LABEL "CompositeBlurFilter.Type.Vector"
 
 #define PIXELATE_TYPE_SQUARE 0
 #define PIXELATE_TYPE_SQUARE_LABEL "CompositeBlurFilter.Pixelate.Square"
@@ -81,6 +83,35 @@
 #define EFFECT_MASK_SOURCE_FILTER_SLIDERS_LABEL \
 	"CompositeBlurFilter.EffectMask.Source.Sliders"
 
+#define GRADIENT_TYPE_SOBEL 0
+#define GRADIENT_TYPE_SOBEL_LABEL \
+	"CompositeBlurFilter.VectorBlur.GradientType.Sobel"
+#define GRADIENT_TYPE_FORWARD_DIFF 1
+#define GRADIENT_TYPE_FORWARD_DIFF_LABEL \
+	"CompositeBlurFilter.VectorBlur.GradientType.ForwardDifference"
+#define GRADIENT_TYPE_CENTRAL_LIMIT_DIFF 2
+#define GRADIENT_TYPE_CENTRAL_LIMIT_DIFF_LABEL \
+	"CompositeBlurFilter.VectorBlur.GradientType.CentralLimitDifference"
+
+#define GRADIENT_CHANNEL_RED 0
+#define GRADIENT_CHANNEL_RED_LABEL \
+	"CompositeBlurFilter.VectorBlur.Channel.Red"
+#define GRADIENT_CHANNEL_GREEN 1
+#define GRADIENT_CHANNEL_GREEN_LABEL \
+	"CompositeBlurFilter.VectorBlur.Channel.Green"
+#define GRADIENT_CHANNEL_BLUE 2
+#define GRADIENT_CHANNEL_BLUE_LABEL \
+	"CompositeBlurFilter.VectorBlur.Channel.Blue"
+#define GRADIENT_CHANNEL_ALPHA 3
+#define GRADIENT_CHANNEL_ALPHA_LABEL \
+	"CompositeBlurFilter.VectorBlur.Channel.Alpha"
+#define GRADIENT_CHANNEL_LUMINANCE 4
+#define GRADIENT_CHANNEL_LUMINANCE_LABEL \
+	"CompositeBlurFilter.VectorBlur.Channel.Luminance"
+#define GRADIENT_CHANNEL_SATURATION 5
+#define GRADIENT_CHANNEL_SATURATION_LABEL \
+	"CompositeBlurFilter.VectorBlur.Channel.Saturation"
+
 typedef DARRAY(float) fDarray;
 
 struct composite_blur_filter_data;
@@ -98,6 +129,8 @@ struct composite_blur_filter_data {
 	gs_effect_t *mix_effect;
 	gs_effect_t *effect_mask_effect;
 	gs_effect_t *output_effect;
+	gs_effect_t *gradient_effect;
+	gs_effect_t *gv_effect;
 
 	// Render pipeline
 	bool input_rendered;
@@ -110,6 +143,10 @@ struct composite_blur_filter_data {
 	gs_texrender_t *background_texrender;
 	// Renderer for composite render step
 	gs_texrender_t *composite_render;
+
+	// Renderers for vector blur
+	gs_texrender_t* vb_gradient;
+	gs_texrender_t* vb_smoothed_gradient;
 
 	obs_hotkey_pair_id hotkey;
 
@@ -142,6 +179,16 @@ struct composite_blur_filter_data {
 	fDarray kernel;
 	gs_eparam_t *param_kernel_texture;
 	gs_texture_t *kernel_texture;
+	gs_eparam_t *param_gradient_image;
+	gs_eparam_t *param_gradient_channel;
+	gs_eparam_t *param_gradient_uv_size;
+	gs_eparam_t *param_gradient_map;
+	int vector_blur_channel;
+	float vector_blur_amount;
+	float vector_blur_smoothing;
+	int vector_blur_type;
+	float last_vector_blur_amount;
+	obs_weak_source_t* vector_blur_source;
 
 	// Box Blur
 	int passes;
@@ -301,6 +348,7 @@ static bool settings_blur_area(obs_properties_t *props, obs_data_t *settings);
 static bool settings_blur_directional(obs_properties_t *props);
 static bool settings_blur_zoom(obs_properties_t *props);
 static bool settings_blur_tilt_shift(obs_properties_t *props);
+static bool settings_blur_vector(obs_properties_t* props, composite_blur_filter_data_t* filter);
 
 static void apply_effect_mask(composite_blur_filter_data_t *filter);
 static void apply_effect_mask_crop(composite_blur_filter_data_t *filter);
