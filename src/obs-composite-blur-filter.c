@@ -61,6 +61,7 @@ static void composite_blur_defaults(obs_data_t *settings)
 	obs_data_set_default_double(settings, "effect_mask_crop_bottom", 20.0);
 	obs_data_set_default_double(settings, "effect_mask_crop_left", 20.0);
 	obs_data_set_default_double(settings, "effect_mask_crop_right", 20.0);
+	obs_data_set_default_string(settings, "vector_source", "");
 }
 
 static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
@@ -196,6 +197,13 @@ static void composite_blur_destroy(void *data)
 	if (filter->output_effect) {
 		gs_effect_destroy(filter->output_effect);
 	}
+	if (filter->gradient_effect) {
+		gs_effect_destroy(filter->gradient_effect);
+	}
+	if (filter->gv_effect) {
+		gs_effect_destroy(filter->gv_effect);
+	}
+
 	if (filter->render) {
 		gs_texrender_destroy(filter->render);
 	}
@@ -459,6 +467,30 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		(float)obs_data_get_double(settings, "tilt_shift_width");
 	filter->tilt_shift_angle =
 		(float)obs_data_get_double(settings, "tilt_shift_angle");
+
+	filter->vector_blur_channel = (int)obs_data_get_int(settings, "vector_blur_channel");
+	filter->vector_blur_amount = (float)obs_data_get_double(settings, "vector_blur_amount");
+	filter->vector_blur_smoothing = (float)obs_data_get_double(settings, "vector_blur_smoothing");
+
+	filter->vector_blur_type = (int)obs_data_get_int(settings, "vector_gradient_type");
+
+	const char* vector_source_name =
+		obs_data_get_string(settings, "vector_source");
+	obs_source_t* vector_source =
+		(vector_source_name && strlen(vector_source_name))
+		? obs_get_source_by_name(vector_source_name)
+		: NULL;
+	if (filter->vector_blur_source)
+		obs_weak_source_release(filter->vector_blur_source);
+	if (vector_source) {
+		filter->vector_blur_source =
+			obs_source_get_weak_source(vector_source);
+		obs_source_release(vector_source);
+	}
+	else {
+		filter->vector_blur_source = NULL;
+	}
+
 
 	const char *source_name = obs_data_get_string(settings, "background");
 	obs_source_t *source = (source_name && strlen(source_name))
@@ -1076,6 +1108,73 @@ static obs_properties_t *composite_blur_properties(void *data)
 		props, "radius", obs_module_text("CompositeBlurFilter.Radius"),
 		0.0, 80.1, 0.1);
 
+	obs_properties_t* vector_blur = obs_properties_create();
+
+	obs_property_t* vector_source = obs_properties_add_list(
+		vector_blur, "vector_source",
+		obs_module_text("CompositeBlurFilter.VectorBlur.Source"),
+		OBS_COMBO_TYPE_EDITABLE, OBS_COMBO_FORMAT_STRING);
+	obs_enum_sources(add_source_to_list, vector_source);
+	obs_enum_scenes(add_source_to_list, vector_source);
+	obs_property_list_insert_string(
+		vector_source, 0,
+		"",
+		"");
+
+	obs_property_t* vector_channel = obs_properties_add_list(
+		vector_blur, "vector_blur_channel",
+		obs_module_text("CompositeBlurFilter.VectorBlur.Channel"),
+		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(vector_channel,
+		obs_module_text(GRADIENT_CHANNEL_RED_LABEL),
+		GRADIENT_CHANNEL_RED);
+	obs_property_list_add_int(vector_channel,
+		obs_module_text(GRADIENT_CHANNEL_GREEN_LABEL),
+		GRADIENT_CHANNEL_GREEN);
+	obs_property_list_add_int(vector_channel,
+		obs_module_text(GRADIENT_CHANNEL_BLUE_LABEL),
+		GRADIENT_CHANNEL_BLUE);
+	obs_property_list_add_int(vector_channel,
+		obs_module_text(GRADIENT_CHANNEL_ALPHA_LABEL),
+		GRADIENT_CHANNEL_ALPHA);
+	obs_property_list_add_int(vector_channel,
+		obs_module_text(GRADIENT_CHANNEL_LUMINANCE_LABEL),
+		GRADIENT_CHANNEL_LUMINANCE);
+	obs_property_list_add_int(vector_channel,
+		obs_module_text(GRADIENT_CHANNEL_SATURATION_LABEL),
+		GRADIENT_CHANNEL_SATURATION);
+
+	obs_property_set_modified_callback2(vector_channel,
+		vector_channel_modified, data);
+
+	obs_property_t* vector_gradient_type = obs_properties_add_list(
+		vector_blur, "vector_gradient_type",
+		obs_module_text("CompositeBlurFilter.VectorBlur.GradientType"),
+		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(vector_gradient_type,
+		obs_module_text(GRADIENT_TYPE_SOBEL_LABEL),
+		GRADIENT_TYPE_SOBEL);
+	obs_property_list_add_int(vector_gradient_type,
+		obs_module_text(GRADIENT_TYPE_CENTRAL_LIMIT_DIFF_LABEL),
+		GRADIENT_TYPE_CENTRAL_LIMIT_DIFF);
+	obs_property_list_add_int(vector_gradient_type,
+		obs_module_text(GRADIENT_TYPE_FORWARD_DIFF_LABEL),
+		GRADIENT_TYPE_FORWARD_DIFF);
+
+	obs_properties_add_float_slider(
+		vector_blur, "vector_blur_amount",
+		obs_module_text("CompositeBlurFilter.VectorBlur.Amount"),
+		-100.0, 100.0, 0.1);
+
+	obs_properties_add_float_slider(
+		vector_blur, "vector_blur_smoothing",
+		obs_module_text("CompositeBlurFilter.VectorBlur.Smoothing"),
+		0.0, 1000.0, 0.1);
+
+	obs_properties_add_group(props, "vector_group",
+		obs_module_text("CompositeBlurFilter.VectorBlur"),
+		OBS_GROUP_NORMAL, vector_blur);
+
 	obs_properties_add_float_slider(
 		props, "pixelate_smoothing_pct",
 		obs_module_text("CompositeBlurFilter.Pixelate.Smoothing"), 0.0,
@@ -1644,7 +1743,8 @@ static bool setting_blur_types_modified(void *data, obs_properties_t *props,
 					obs_property_t *p, obs_data_t *settings)
 {
 	UNUSED_PARAMETER(p);
-	UNUSED_PARAMETER(data);
+	//UNUSED_PARAMETER(data);
+	composite_blur_filter_data_t* filter = data;
 	int blur_type = (int)obs_data_get_int(settings, "blur_type");
 	if (blur_type == TYPE_AREA) {
 		return settings_blur_area(props, settings);
@@ -1656,6 +1756,8 @@ static bool setting_blur_types_modified(void *data, obs_properties_t *props,
 		return settings_blur_directional(props);
 	} else if (blur_type == TYPE_TILTSHIFT) {
 		return settings_blur_tilt_shift(props);
+	} else if (blur_type == TYPE_VECTOR) {
+		return settings_blur_vector(props, filter);
 	}
 	return true;
 }
@@ -1716,6 +1818,18 @@ static bool settings_blur_tilt_shift(obs_properties_t *props)
 	setting_visibility("center_coordinate", false, props);
 	setting_visibility("background", true, props);
 	setting_visibility("tilt_shift_bounds", true, props);
+	return true;
+}
+
+static bool settings_blur_vector(obs_properties_t* props, composite_blur_filter_data_t* filter)
+{
+	setting_visibility("radius", false , props);
+	setting_visibility("angle", false, props);
+	setting_visibility("center_coordinate", false, props);
+	setting_visibility("background", true, props);
+	setting_visibility("tilt_shift_bounds", false, props);
+	// TODO: Adjust visibility of our vector settings.
+	filter->last_vector_blur_amount = -999999.0;
 	return true;
 }
 

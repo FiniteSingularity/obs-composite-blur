@@ -20,6 +20,28 @@ void render_video_dual_kawase(composite_blur_filter_data_t *data)
 	dual_kawase_blur(data);
 }
 
+void render_video_dual_kawase_io(composite_blur_filter_data_t* data, gs_texrender_t* input, gs_texrender_t* output)
+{
+	gs_texrender_t* tmp = data->input_texrender;
+	data->input_texrender = input;
+	input = tmp;
+
+	tmp = data->output_texrender;
+	data->output_texrender = output;
+	output = tmp;
+
+	dual_kawase_blur(data);
+
+	tmp = data->input_texrender;
+	data->input_texrender = input;
+	input = tmp;
+
+	tmp = data->output_texrender;
+	data->output_texrender = output;
+	output = tmp;
+}
+
+
 void load_effect_dual_kawase(composite_blur_filter_data_t *filter)
 {
 	load_dual_kawase_down_sample_effect(filter);
