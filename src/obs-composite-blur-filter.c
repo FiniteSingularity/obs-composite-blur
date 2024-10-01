@@ -75,6 +75,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->hotkey = OBS_INVALID_HOTKEY_PAIR_ID;
 	filter->radius = 0.0f;
 	filter->radius_last = -1.0f;
+	filter->time = 0.0f;
 	filter->angle = 0.0f;
 	filter->passes = 1;
 	filter->center_x = 0.0f;
@@ -313,6 +314,10 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 
 	filter->pixelate_tessel_center.y =
 		(float)obs_data_get_double(settings, "pixelate_origin_y");
+
+	filter->pixelate_animate = obs_data_get_bool(settings, "pixelate_animate");
+	filter->pixelate_animation_speed = (float)obs_data_get_double(settings, "pixelate_animation_speed")/100.0f;
+	filter->pixelate_animation_time = (float)obs_data_get_double(settings, "pixelate_time");
 
 	const double theta =
 		M_PI *
@@ -1060,6 +1065,12 @@ static obs_properties_t *composite_blur_properties(void *data)
 	obs_property_list_add_int(pixelate_types,
 				  obs_module_text(PIXELATE_TYPE_TRIANGLE_LABEL),
 				  PIXELATE_TYPE_TRIANGLE);
+	obs_property_list_add_int(pixelate_types,
+				  obs_module_text(PIXELATE_TYPE_VORONOI_LABEL),
+				  PIXELATE_TYPE_VORONOI);
+
+	obs_property_set_modified_callback(pixelate_types,
+		setting_pixelate_animate_modified);
 
 	obs_properties_add_float_slider(
 		props, "radius", obs_module_text("CompositeBlurFilter.Radius"),
@@ -1084,6 +1095,26 @@ static obs_properties_t *composite_blur_properties(void *data)
 		props, "pixelate_rotation",
 		obs_module_text("CompositeBlurFilter.Pixelate.Rotation"),
 		-360.0, 360.0, 0.1);
+
+	obs_property_t *animate_p = obs_properties_add_bool(
+		props, "pixelate_animate",
+		obs_module_text("CompositeBlurFilter.Pixelate.Animate")
+	);
+
+	obs_property_set_modified_callback(animate_p,
+		setting_pixelate_animate_modified);
+
+	obs_properties_add_float(
+		props, "pixelate_time",
+		obs_module_text("CompositeBlurFilter.Pixelate.Time"),
+		0.0, 1000000.0, 0.01
+	);
+
+	obs_properties_add_float_slider(
+		props, "pixelate_animation_speed",
+		obs_module_text("CompositeBlurFilter.Pixelate.AnimationSpeed"),
+		0.0, 1000.0, 0.1
+	);
 
 	obs_properties_add_int_slider(
 		props, "passes",
@@ -1413,6 +1444,25 @@ static bool setting_effect_mask_source_filter_modified(obs_properties_t *props,
 	return true;
 }
 
+static bool setting_pixelate_animate_modified(obs_properties_t* props,
+	obs_property_t* p,
+	obs_data_t* settings)
+{
+	int pixelate_type = (int)obs_data_get_int(settings, "pixelate_type");
+	if (pixelate_type == PIXELATE_TYPE_VORONOI) {
+		bool animate = obs_data_get_bool(settings, "pixelate_animate");
+		setting_visibility("pixelate_time", !animate, props);
+		setting_visibility("pixelate_animation_speed", animate, props);
+	}
+	else {
+		setting_visibility("pixelate_animate", false, props);
+		setting_visibility("pixelate_time", false, props);
+		setting_visibility("pixelate_animation_speed", false, props);
+	}
+
+	return true;
+}
+
 static bool setting_effect_mask_modified(obs_properties_t *props,
 					 obs_property_t *p,
 					 obs_data_t *settings)
@@ -1519,6 +1569,10 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("pixelate_rotation", false, props);
 		setting_visibility("pixelate_origin_x", false, props);
 		setting_visibility("pixelate_origin_y", false, props);
+		setting_visibility("pixelate_animate", false, props);
+		setting_visibility("pixelate_time", false, props);
+		setting_visibility("pixelate_animation_speed", false, props);
+
 		set_blur_radius_settings(
 			obs_module_text("CompositeBlurFilter.Radius"), 0.0f,
 			80.01f, 0.1f, props);
@@ -1534,6 +1588,10 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("pixelate_rotation", false, props);
 		setting_visibility("pixelate_origin_x", false, props);
 		setting_visibility("pixelate_origin_y", false, props);
+		setting_visibility("pixelate_animate", false, props);
+		setting_visibility("pixelate_time", false, props);
+		setting_visibility("pixelate_animation_speed", false, props);
+
 		set_blur_radius_settings(
 			obs_module_text("CompositeBlurFilter.Radius"), 0.0f,
 			100.01f, 0.1f, props);
@@ -1549,6 +1607,9 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("pixelate_rotation", false, props);
 		setting_visibility("pixelate_origin_x", false, props);
 		setting_visibility("pixelate_origin_y", false, props);
+		setting_visibility("pixelate_animate", false, props);
+		setting_visibility("pixelate_time", false, props);
+		setting_visibility("pixelate_animation_speed", false, props);
 		set_dual_kawase_blur_types(props);
 		obs_data_set_int(settings, "blur_type", TYPE_AREA);
 		settings_blur_area(props, settings);
@@ -1563,6 +1624,9 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		setting_visibility("pixelate_rotation", true, props);
 		setting_visibility("pixelate_origin_x", true, props);
 		setting_visibility("pixelate_origin_y", true, props);
+		setting_visibility("pixelate_animate", true, props);
+		setting_visibility("pixelate_time", true, props);
+		setting_visibility("pixelate_animation_speed", true, props);
 		set_blur_radius_settings(
 			obs_module_text(
 				"CompositeBlurFilter.Pixelate.PixelSize"),
@@ -1570,7 +1634,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		set_pixelate_blur_types(props);
 		obs_data_set_int(settings, "blur_type", TYPE_AREA);
 		settings_blur_area(props, settings);
-
+		setting_pixelate_animate_modified(props, p, settings);
 		break;
 	}
 	return true;
@@ -1688,8 +1752,13 @@ bool composite_blur_disable_hotkey(void *data, obs_hotkey_pair_id id,
 
 static void composite_blur_video_tick(void *data, float seconds)
 {
-	UNUSED_PARAMETER(seconds);
 	composite_blur_filter_data_t *filter = data;
+	if (filter->pixelate_animate) {
+		filter->time += seconds * filter->pixelate_animation_speed;
+	}
+	else {
+		filter->time = filter->pixelate_animation_time;
+	}
 	obs_source_t *target = obs_filter_get_target(filter->context);
 	if (!target) {
 		return;

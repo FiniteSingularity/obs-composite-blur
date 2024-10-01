@@ -1,0 +1,140 @@
+// pcg44
+#ifdef OPENGL
+uvec4 pcg4d(uvec4 v)
+#else
+uint4 pcg4d(uint4 v)
+#endif
+{
+	v = v * 1664525u + 1013904223u;
+    
+	v.x += v.y * v.w;
+	v.y += v.z * v.x;
+	v.z += v.x * v.y;
+	v.w += v.y * v.z;
+    
+	v ^= v >> 16u;
+    
+	v.x += v.y * v.w;
+	v.y += v.z * v.x;
+	v.z += v.x * v.y;
+	v.w += v.y * v.z;
+    
+	return v;
+}
+
+// pcg33
+#ifdef OPENGL
+uvec3 pcg3d(uvec3 v)
+#else
+uint3 pcg3d(uint3 v)
+#endif
+{
+
+	v = v * 1664525u + 1013904223u;
+
+	v.x += v.y * v.z;
+	v.y += v.z * v.x;
+	v.z += v.x * v.y;
+
+	v ^= v >> 16u;
+
+	v.x += v.y * v.z;
+	v.y += v.z * v.x;
+	v.z += v.x * v.y;
+
+	return v;
+}
+
+#ifdef OPENGL
+uvec2 pcg32(uvec3 v)
+#else
+uint2 pcg32(uint3 v)
+#endif
+{
+
+	v = v * 1664525u + 1013904223u;
+	v.x += v.y * v.z;
+	v.y += v.z * v.x;
+	v.z += v.x * v.y;
+
+	v ^= v >> 16u;
+
+	v.x += v.y * v.z;
+	v.y += v.z * v.x;
+	
+	return v.xy;
+}
+
+#ifdef OPENGL
+uint pcg31(uvec3 v)
+#else
+uint pcg31(uint3 v)
+#endif
+{
+
+	v = v * 1664525u + 1013904223u;
+	v.x += v.y * v.z;
+	v.y += v.z * v.x;
+	v.z += v.x * v.y;
+
+	v ^= v >> 16u;
+
+	v.x += v.y * v.z;
+
+	return v.x;
+}
+
+uint pcg(uint v)
+{
+	uint state = v * 747796405u + 2891336453u;
+	uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+	return (word >> 22u) ^ word;
+}
+
+float4 hash44(float4 src)
+{
+#ifdef OPENGL
+	uvec4 u = uvec4(src + 8000000.0f);
+#else
+	uint4 u = uint4(src + 8000000.0f);
+#endif
+	return float4(pcg4d(u)) * (1.0 / float(0xffffffffu));
+}
+
+// 3 outputs, 3 inputs
+float3 hash33(float3 src)
+{
+#ifdef OPENGL
+	uvec3 u = uvec3(src + 8000000.0f);
+#else
+	uint3 u = uint3(src + 8000000.0f);
+#endif
+	return float3(pcg3d(u)) * (1.0 / float(0xffffffffu));
+}
+
+// 2 outputs, 3 inputs
+float2 hash32(float3 src)
+{
+#ifdef OPENGL
+	uvec3 u = uvec3(src + 8000000.0f);
+#else
+	uint3 u = uint3(src + 8000000.0f);
+#endif
+	return float2(pcg32(u)) * (1.0 / float(0xffffffffu));
+}
+
+// 1 outputs, 3 inputs
+float hash31(float3 src)
+{
+#ifdef OPENGL
+	uvec3 u = uvec3(src + 8000000.0f);
+#else
+	uint3 u = uint3(src + 8000000.0f);
+#endif
+	return float(pcg31(u)) * (1.0 / float(0xffffffffu));
+}
+
+float hash11(float src)
+{
+	return float(pcg(uint(src)) * 1.0 / float(0xffffffffu));
+}
