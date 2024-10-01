@@ -130,7 +130,7 @@ gs_texture_t *mix_textures(composite_blur_filter_data_t *data,
 static void dual_kawase_blur(composite_blur_filter_data_t *data)
 {
 	gs_texture_t *texture = gs_texrender_get_texture(data->input_texrender);
-	if (data->kawase_passes <= 1) {
+	if (data->kawase_passes <= 0.01f) {
 		data->output_texrender =
 			create_or_reset_texrender(data->output_texrender);
 		texrender_set_texture(texture, data->output_texrender);
@@ -154,6 +154,13 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 		texture = down_sample(data, texture, i, 1.0);
 		last_pass = i;
 	}
+
+	if (last_pass == 0) {
+		gs_texrender_t* tmp = data->render;
+		data->render = data->input_texrender;
+		data->input_texrender = tmp;
+	}
+
 	float residual = last_pass > 0 ? data->kawase_passes - (float)last_pass : data->kawase_passes;
 	last_pass = last_pass > 0 ? last_pass : 1;
 	if (residual > 0.0f) {
