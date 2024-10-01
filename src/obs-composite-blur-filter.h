@@ -145,7 +145,7 @@ struct composite_blur_filter_data {
 	int passes;
 
 	// Kawase Blur
-	int kawase_passes;
+	float kawase_passes;
 
 	// Pixelate Blur
 	int pixelate_type;

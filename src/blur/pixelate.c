@@ -50,7 +50,7 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 	const float radius = (float)fmax((float)data->radius, 1.0f);
 
 	data->kawase_passes =
-		(int)(data->pixelate_smoothing_pct / 100.0f * radius);
+		data->pixelate_smoothing_pct / 100.0f * radius;
 	render_video_dual_kawase(data);
 	data->pixelate_texrender =
 		create_or_reset_texrender(data->pixelate_texrender);
