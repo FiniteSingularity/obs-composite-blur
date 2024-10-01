@@ -1,0 +1,103 @@
+
+#include "noise_fns.effect"
+
+uniform float4x4 ViewProj;
+uniform texture2d image;
+
+uniform float2 uv_size;
+uniform float pixel_size;
+uniform float2 tess_origin;
+uniform float sin_theta;
+uniform float cos_theta;
+uniform float sin_rtheta;
+uniform float cos_rtheta;
+uniform float time;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+float2 worley_noise(float3 p)
+{
+	float3 base = floor(p);
+	float3 offset = frac(p);
+
+	float value = 2.0;
+	float2 v_pos = float2(-1.0, -1.0);
+	for (int x = -1; x <= 1; x++)
+	{
+		for (int y = -1; y <= 1; y++)
+		{
+			for (int t = -1; t <= 1; t++)
+			{
+				float3 shift = float3(x, y, t);
+				float3 pos = hash33(base + shift);
+				float3 delta = (shift + pos) - offset;
+				float delta_length = length(delta);
+				if (delta_length < value)
+				{
+					v_pos = delta.xy;
+					value = delta_length;
+				}
+			}
+		}
+	}
+	return v_pos;
+}
+
+float4 worley_1d(float2 uv)
+{
+	//float theta = float(i) * sub_rotation;
+	//uv = transform(uv, float2(0.5, 0.5), theta);
+	//float2 displacement = float(i) * sub_displace;
+	float2 coord = uv * uv_size;
+	coord -=  tess_origin; // Shift by origin
+	coord = float2(coord.x * cos_theta - coord.y * sin_theta, coord.x * sin_theta + coord.y * cos_theta); // Rotate
+	coord *= 1.0 / (2.0 * pixel_size); // scale
+
+	// Sample our worley/voronoi grid
+	float2 delta = worley_noise(float3(coord, time));
+
+	
+	float2 sample_pos = (coord + delta) * 2.0 * pixel_size;
+	sample_pos = float2(sample_pos.x * cos_rtheta - sample_pos.y * sin_rtheta, sample_pos.x * sin_rtheta + sample_pos.y * cos_rtheta) + tess_origin;
+	return image.Sample(textureSampler, sample_pos / uv_size);
+}
+
+VertData mainTransform(VertData v_in)
+{
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
+}
+
+float4 mainImage(VertData v_in) : TARGET
+{
+    // 1. Sample incoming pixel
+	return worley_1d(v_in.uv);
+	
+	//float2 coord_p = coord - tess_origin; // Shifted box coordinate
+	//coord_p = float2(coord_p.x * cos_theta - coord_p.y * sin_theta, coord_p.x * sin_theta + coord_p.y * cos_theta);
+	//float2 coord_grid = (coord_p - MOD(coord_p, pixel_size) + sign(coord_p) *
+ //                          float2(pixel_size, pixel_size) / 2.0f);
+	//float2 uv_prime = (float2(coord_grid.x * cos_rtheta - coord_grid.y * sin_rtheta, coord_grid.x * sin_rtheta + coord_grid.y * cos_rtheta) + tess_origin) / uv_size;
+	//return image.Sample(textureSampler, uv_prime);
+}
+
+technique Draw
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = mainImage(v_in);
+	}
+}

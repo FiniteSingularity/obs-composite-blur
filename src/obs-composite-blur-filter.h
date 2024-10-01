@@ -50,6 +50,8 @@
 #define PIXELATE_TYPE_CIRCLE_LABEL "CompositeBlurFilter.Pixelate.Circle"
 #define PIXELATE_TYPE_TRIANGLE 4
 #define PIXELATE_TYPE_TRIANGLE_LABEL "CompositeBlurFilter.Pixelate.Triangle"
+#define PIXELATE_TYPE_VORONOI 5
+#define PIXELATE_TYPE_VORONOI_LABEL "CompositeBlurFilter.Pixelate.Voronoi"
 
 #define EFFECT_MASK_TYPE_NONE 0
 #define EFFECT_MASK_TYPE_NONE_LABEL "CompositeBlurFilter.EffectMask.None"
@@ -113,6 +115,8 @@ struct composite_blur_filter_data {
 	bool reload;
 	bool rendered;
 
+	float time;
+
 	// Blur Filter Common
 	int blur_algorithm;
 	int blur_algorithm_last;
@@ -153,6 +157,9 @@ struct composite_blur_filter_data {
 	float pixelate_sin_theta;
 	float pixelate_cos_rtheta;
 	float pixelate_sin_rtheta;
+	bool pixelate_animate;
+	float pixelate_animation_speed;
+	float pixelate_animation_time;
 	gs_eparam_t *param_pixel_size;
 	gs_eparam_t *param_pixel_center;
 	gs_eparam_t *param_pixel_rot;
@@ -160,6 +167,7 @@ struct composite_blur_filter_data {
 	gs_eparam_t *param_pixel_sin_theta;
 	gs_eparam_t *param_pixel_cos_rtheta;
 	gs_eparam_t *param_pixel_sin_rtheta;
+	gs_eparam_t* param_pixel_time;
 	gs_texrender_t *pixelate_texrender;
 
 	// Radial Blur
@@ -271,6 +279,9 @@ static bool setting_effect_mask_modified(obs_properties_t *props,
 static bool setting_blur_types_modified(void *data, obs_properties_t *props,
 					obs_property_t *p,
 					obs_data_t *settings);
+static bool setting_pixelate_animate_modified(obs_properties_t* props,
+					obs_property_t* p,
+					obs_data_t* settings);
 static void setting_visibility(const char *prop_name, bool visible,
 			       obs_properties_t *props);
 static void set_blur_radius_settings(const char *name, float min_val,
