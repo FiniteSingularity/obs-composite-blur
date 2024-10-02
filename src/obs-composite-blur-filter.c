@@ -1448,6 +1448,7 @@ static bool setting_pixelate_animate_modified(obs_properties_t* props,
 	obs_property_t* p,
 	obs_data_t* settings)
 {
+	UNUSED_PARAMETER(p);
 	int pixelate_type = (int)obs_data_get_int(settings, "pixelate_type");
 	if (pixelate_type == PIXELATE_TYPE_VORONOI) {
 		bool animate = obs_data_get_bool(settings, "pixelate_animate");

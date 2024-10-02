@@ -148,7 +148,6 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 	set_blending_parameters();
 	// TODO: Should we convert Kawase to be 1 based instead of 2.
 	int last_pass = 0;
-	int pass_count = (int)data->kawase_passes;
 	// Down Sampling Loop
 	for (int i = 2; i <= data->kawase_passes; i *= 2) {
 		texture = down_sample(data, texture, i, 1.0);
