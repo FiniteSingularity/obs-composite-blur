@@ -1,0 +1,102 @@
+#define SIN30 0.5
+#define COS30 0.866025403784
+#define TAN30 0.577350269190
+
+uniform float4x4 ViewProj;
+uniform texture2d image;
+
+uniform float2 uv_size;
+uniform float pixel_size;
+uniform float2 tess_origin;
+uniform float sin_theta;
+uniform float cos_theta;
+uniform float sin_rtheta;
+uniform float cos_rtheta;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+float2 coordToTriCenter(float2 coord, float width) {
+    float v = floor(coord.y / (width * (1.0 + SIN30)));
+	float u = floor(coord.x / (width * COS30));
+
+	bool v_even = fmod(v, 2.0) == 0.0;
+	bool u_even = fmod(u, 2.0) == 0.0;
+
+	float2 local_coord = coord - float2(u * width * COS30, v * width * (1.0 + SIN30));
+
+	if ((v_even && u_even) || (!v_even && !u_even))
+	{
+		float2 local_coord_prime = float2(
+			local_coord.x,
+			local_coord.y - local_coord.x * TAN30
+		);
+		if(local_coord_prime.y < 0.0) { // in bottom triangle
+			return float2((u+1.)*width*COS30, v*width*(1.+SIN30)+0.5*width*SIN30);
+		} else if(local_coord_prime.y > width) { //in top triangle
+			return float2(u*width*COS30, (v+1.)*width*(1.+SIN30)-0.5*width*SIN30);
+		} else if(local_coord_prime.y >= 1.13*local_coord_prime.x) {
+			// local_center = 0.25*w, 0.75*w
+			return float2(u*width*COS30+0.25*width, v*width*(1.+SIN30)+0.75*width + 0.25*width*TAN30);
+		} else {
+			//local_center = 0.75*w, 0.25*w
+			return float2(u*width*COS30+0.75*width, v*width*(1.+SIN30)+0.25*width + 0.75*width*TAN30);
+		}
+	} else {
+		float2 local_coord_prime = float2(
+			local_coord.x,
+			local_coord.y - (width * COS30 - local_coord.x) * TAN30
+		);
+		if(local_coord_prime.y < 0.0) { // in bottom triangle
+			return float2(u*width*COS30, v*width*(1.+SIN30)+0.5*width*SIN30);
+		} else if(local_coord_prime.y > width) { // in top triangle
+			return float2((u+1.)*width*COS30, (v+1.)*width*(1.+SIN30)-0.5*width*SIN30);
+		} else if(local_coord_prime.y >= width-1.13*local_coord_prime.x) {
+			return float2(u*width*COS30+0.75*width, v*width*(1.+SIN30)+0.75*width + 0.75*width*TAN30);
+		} else {
+			return float2(u*width*COS30+0.25*width, v*width*(1.+SIN30)+0.25*width + 0.25*width*TAN30);
+		}
+	}
+}
+
+VertData mainTransform(VertData v_in)
+{
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
+}
+
+float4 mainImage(VertData v_in) : TARGET
+{
+
+	float2 coord = v_in.uv * uv_size;
+    // float2 uv_prime = (coord - fmod(coord, pixel_size)) / uv_size;
+    
+	float2 local_coord = coord - tess_origin; // Shifted box coordinate
+	local_coord = float2(local_coord.x * cos_theta - local_coord.y * sin_theta, local_coord.x * sin_theta + local_coord.y * cos_theta);
+
+	float2 frame_nearest = coordToTriCenter(local_coord, pixel_size);
+
+	float2 uv_prime = (float2(frame_nearest.x * cos_rtheta - frame_nearest.y * sin_rtheta, frame_nearest.x * sin_rtheta + frame_nearest.y * cos_rtheta) + tess_origin) / uv_size;
+
+	return image.Sample(textureSampler, uv_prime);
+}
+
+technique Draw
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = mainImage(v_in);
+	}
+}

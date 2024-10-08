@@ -1114,6 +1114,12 @@ static obs_properties_t *composite_blur_properties(void *data)
 	obs_property_list_add_int(pixelate_types,
 				  obs_module_text(PIXELATE_TYPE_VORONOI_LABEL),
 				  PIXELATE_TYPE_VORONOI);
+	obs_property_list_add_int(pixelate_types,
+				  obs_module_text(PIXELATE_TYPE_RHOMBOID_LABEL),
+				  PIXELATE_TYPE_RHOMBOID);
+	obs_property_list_add_int(pixelate_types,
+				  obs_module_text(PIXELATE_TYPE_TRIAKIS_LABEL),
+				  PIXELATE_TYPE_TRIAKIS);
 
 	obs_property_set_modified_callback(pixelate_types,
 		setting_pixelate_animate_modified);

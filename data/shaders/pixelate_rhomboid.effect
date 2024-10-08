@@ -1,0 +1,161 @@
+#define SIN30	0.5
+#define COS30	0.866025403784
+#define TAN30	0.577350269190
+#define PI      3.14159
+#define PI2	6.283185307179
+#define RAD30   0.523599
+#define RAD120  2.0944
+
+#define R	2.0f
+#define S	2.3094011f
+#define T	1.1547005f
+
+
+uniform float4x4 ViewProj;
+uniform texture2d image;
+
+uniform float2 uv_size;
+uniform float pixel_size;
+uniform float2 tess_origin;
+uniform float sin_theta;
+uniform float cos_theta;
+uniform float sin_rtheta;
+uniform float cos_rtheta;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+
+float mod(float x, float y)
+{
+	return x - y * floor(x / y);
+}
+
+//float2 coordToRhomboidCenter(float2 coord, float width)
+//{
+//	float v = floor(coord.y / (width * (1.0 + SIN30)));
+//	float u = floor(coord.x / (width * COS30));
+
+//	bool v_even = fmod(v, 2.0) == 0.0;
+//	bool u_even = fmod(u, 2.0) == 0.0;
+
+//	float2 local_coord = coord - float2(u * width * COS30, v * width * (1.0 + SIN30));
+
+//	if ((v_even && u_even) || (!v_even && !u_even))
+//	{
+//		float2 local_coord_prime = float2(
+//			local_coord.x,
+//			local_coord.y - local_coord.x * TAN30
+//		);
+//		if (local_coord_prime.y < 0.0) { // in bottom triangle
+//			return float2((u + 1.0) * width * COS30, v * width * (1.0 + SIN30));
+//		} else if (local_coord_prime.y > width) { // in top triangle
+//			return float2(u * width * COS30, (v + 1.0) * width * (1.0 + SIN30));
+//		}
+//	} else {
+//		float2 local_coord_prime = float2(
+//			local_coord.x,
+//			local_coord.y - (width * COS30 - local_coord.x) * TAN30
+//		);
+//		if (local_coord_prime.y < 0.0) { // in bottom triangle
+//			return float2(u * width * COS30, v * width * (1.0 + SIN30));
+//		} else if (local_coord_prime.y > width) { // in top triangle
+//			return float2((u + 1.0) * width * COS30, (v + 1.0) * width * (1.0 + SIN30));
+//		}
+//	}
+//	// in center rhombus
+//	return float2((u + 0.5) * width * COS30, (v + 0.5) * width * (1.0 + SIN30));
+//}
+
+// Converts cartesian coordinates to hexagonal 
+// index coordinates.
+float2 cartToHex(float2 coord)
+{
+	// float2x2 Xm = { 1./(2.*R), -1./S,
+	//                 1./R,       0. };
+	// float2x2 Ym = { 1./(2.*R), 1./S,
+	//                -1./(2.*R), 1./S };
+	// float2 Mi = floor(mul(Xm, coord));
+	// float2 Mj = floor(mul(Ym, coord));
+	float2 Mi = floor(float2(1.0f / (2.0f * R) * coord.x - 1.0 / S * coord.y, 1.0f / R * coord.x));
+	float2 Mj = floor(float2(1.0f / (2.0f * R) * coord.x + 1.0 / S * coord.y, -1.0f / (2.0f * R) * coord.x + 1.0f / S * coord.y));
+	return float2(
+		floor((Mi.x + Mi.y + 2.0f) / 3.0f),
+		floor((Mj.x + Mj.y + 2.0f) / 3.0f)
+	);
+}
+
+// Converts hexagonal index coordinates to
+// cartesian coordinates.
+float2 hexToCart(float2 hex_coord)
+{
+	return float2(
+		hex_coord.x * (2.0f * R) + hex_coord.y * R,
+		hex_coord.y * (S + T)
+	);
+}
+
+// Returns the cartesian coordinate of the center
+// of the hexagon containing the coordinate coord
+// given a regular hexagon grid size, real_r
+float2 coordToHexCenter(float2 coord, float real_r)
+{
+	float scale = real_r / R;
+	float2 hex_coord = cartToHex(coord / scale);
+	return hexToCart(hex_coord) * scale;
+}
+
+float2 coordToRhomboidCenter(float2 coord, float width)
+{
+	float2 hexCenter = coordToHexCenter(coord, width);
+	float2 d = coord - hexCenter;
+	float theta = mod((atan2(d.y,d.x)) - RAD30 + PI2, PI2);
+	float inc = mod(floor(theta / RAD120)-1.0, 3.0);
+	float phi = inc * RAD120 + RAD30;
+	float halfWidth = width * 0.25;
+	return hexCenter + float2(halfWidth * cos(phi), halfWidth * sin(phi));
+}
+
+VertData mainTransform(VertData v_in)
+{
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
+}
+
+float4 mainImage(VertData v_in) : TARGET
+{
+
+	float2 coord = v_in.uv * uv_size;
+    // float2 uv_prime = (coord - fmod(coord, pixel_size)) / uv_size;
+    
+	float2 local_coord = coord - tess_origin; // Shifted box coordinate
+	local_coord = float2(local_coord.x * cos_theta - local_coord.y * sin_theta, local_coord.x * sin_theta + local_coord.y * cos_theta);
+
+	float2 frame_nearest = coordToRhomboidCenter(local_coord, pixel_size);
+	//return float4(frame_nearest, frame_nearest, frame_nearest, 1.0);
+	//float2 frame_nearest = coordToRhomboidCenter(local_coord, pixel_size);
+
+	float2 uv_prime = (float2(frame_nearest.x * cos_rtheta - frame_nearest.y * sin_rtheta, frame_nearest.x * sin_rtheta + frame_nearest.y * cos_rtheta) + tess_origin) / uv_size;
+
+	return image.Sample(textureSampler, uv_prime);
+}
+
+technique Draw
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = mainImage(v_in);
+	}
+}
