@@ -5,6 +5,7 @@
 #include "blur/box.h"
 #include "blur/pixelate.h"
 #include "blur/dual_kawase.h"
+#include "blur/temporal.h"
 
 struct obs_source_info obs_composite_blur = {
 	.id = "obs_composite_blur",
@@ -94,6 +95,8 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->pixelate_type = 1;
 	filter->pixelate_type_last = -1;
 
+	filter->temporal_prior_stored = false;
+
 	// Params
 	filter->param_uv_size = NULL;
 	filter->param_radius = NULL;
@@ -130,6 +133,9 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->param_mask_circle_feathering = NULL;
 	filter->param_mask_circle_inv = NULL;
 	filter->param_mask_circle_uv_scale = NULL;
+	filter->param_temporal_image = NULL;
+	filter->param_temporal_prior_image = NULL;
+	filter->param_temporal_current_weight = NULL;
 
 	filter->mask_image = NULL;
 
@@ -300,6 +306,9 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 
 	filter->pixelate_type =
 		(int)obs_data_get_int(settings, "pixelate_type");
+
+	filter->temporal_current_weight =
+		(float)obs_data_get_double(settings, "temporal_current_weight");
 
 	if (filter->pixelate_type != filter->pixelate_type_last) {
 		filter->pixelate_type_last = filter->pixelate_type;
@@ -1026,6 +1035,10 @@ static obs_properties_t *composite_blur_properties(void *data)
 	obs_property_list_add_int(blur_algorithms,
 				  obs_module_text(ALGO_PIXELATE_LABEL),
 				  ALGO_PIXELATE);
+	obs_property_list_add_int(blur_algorithms,
+				  obs_module_text(ALGO_TEMPORAL_LABEL),
+				  ALGO_TEMPORAL);
+
 	obs_property_set_modified_callback2(
 		blur_algorithms, setting_blur_algorithm_modified, data);
 
@@ -1075,6 +1088,10 @@ static obs_properties_t *composite_blur_properties(void *data)
 	obs_properties_add_float_slider(
 		props, "radius", obs_module_text("CompositeBlurFilter.Radius"),
 		0.0, 80.1, 0.1);
+
+	obs_properties_add_float_slider(
+		props, "temporal_current_weight", obs_module_text("CompositeBlurFilter.Temporal.CurrentWeight"),
+		0.01, 1.0, 0.01);
 
 	obs_properties_add_float_slider(
 		props, "pixelate_smoothing_pct",
@@ -1562,6 +1579,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 	switch (blur_algorithm) {
 	case ALGO_GAUSSIAN:
 		setting_visibility("radius", true, props);
+		setting_visibility("temporal_current_weight", false, props);
 		setting_visibility("passes", false, props);
 		setting_visibility("kawase_passes", false, props);
 		setting_visibility("blur_type", true, props);
@@ -1581,6 +1599,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		break;
 	case ALGO_BOX:
 		setting_visibility("radius", true, props);
+		setting_visibility("temporal_current_weight", false, props);
 		setting_visibility("kawase_passes", false, props);
 		setting_visibility("passes", true, props);
 		setting_visibility("blur_type", true, props);
@@ -1600,6 +1619,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		break;
 	case ALGO_DUAL_KAWASE:
 		setting_visibility("radius", false, props);
+		setting_visibility("temporal_current_weight", false, props);
 		setting_visibility("passes", false, props);
 		setting_visibility("kawase_passes", true, props);
 		setting_visibility("blur_type", false, props);
@@ -1617,6 +1637,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		break;
 	case ALGO_PIXELATE:
 		setting_visibility("radius", true, props);
+		setting_visibility("temporal_current_weight", false, props);
 		setting_visibility("passes", false, props);
 		setting_visibility("kawase_passes", false, props);
 		setting_visibility("blur_type", false, props);
@@ -1636,6 +1657,21 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 		obs_data_set_int(settings, "blur_type", TYPE_AREA);
 		settings_blur_area(props, settings);
 		setting_pixelate_animate_modified(props, p, settings);
+		break;
+	case ALGO_TEMPORAL:
+		setting_visibility("radius", false, props);
+		setting_visibility("temporal_current_weight", true, props);
+		setting_visibility("kawase_passes", false, props);
+		setting_visibility("passes", false, props);
+		setting_visibility("blur_type", false, props);
+		setting_visibility("pixelate_type", false, props);
+		setting_visibility("pixelate_smoothing_pct", false, props);
+		setting_visibility("pixelate_rotation", false, props);
+		setting_visibility("pixelate_origin_x", false, props);
+		setting_visibility("pixelate_origin_y", false, props);
+		setting_visibility("pixelate_animate", false, props);
+		setting_visibility("pixelate_time", false, props);
+		setting_visibility("pixelate_animation_speed", false, props);
 		break;
 	}
 	return true;
@@ -1828,7 +1864,9 @@ static void composite_blur_reload_effect(composite_blur_filter_data_t *filter)
 		pixelate_setup_callbacks(filter);
 	} else if (filter->blur_algorithm == ALGO_DUAL_KAWASE) {
 		dual_kawase_setup_callbacks(filter);
-	}
+	} else if (filter->blur_algorithm == ALGO_TEMPORAL) {
+		temporal_setup_callbacks(filter);
+	}	
 
 	if (filter->load_effect) {
 		filter->load_effect(filter);
