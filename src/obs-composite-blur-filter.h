@@ -26,6 +26,8 @@
 #define ALGO_DUAL_KAWASE_LABEL "CompositeBlurFilter.Algorithm.DualKawase"
 #define ALGO_PIXELATE 4
 #define ALGO_PIXELATE_LABEL "CompositeBlurFilter.Algorithm.Pixelate"
+#define ALGO_TEMPORAL 5
+#define ALGO_TEMPORAL_LABEL "CompositeBlurFilter.Algorithm.Temporal"
 
 #define TYPE_NONE 0
 #define TYPE_NONE_LABEL "None"
@@ -185,6 +187,14 @@ struct composite_blur_filter_data {
 	float tilt_shift_center;
 	gs_eparam_t *param_focus_angle;
 	float tilt_shift_angle;
+
+	// Temporal
+	gs_eparam_t* param_temporal_image;
+	gs_eparam_t* param_temporal_prior_image;
+	// gs_texture_t* prior_image_texture;
+	gs_eparam_t* param_temporal_current_weight;
+	float temporal_current_weight;
+	bool temporal_prior_stored;
 
 	// Compositing
 	gs_eparam_t *param_background;

@@ -36,6 +36,8 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/blur/pixelate.h
 	src/blur/dual_kawase.c
 	src/blur/dual_kawase.h
+	src/blur/temporal.c
+	src/blur/temporal.h
 	src/version.h)
 
 if(BUILD_OUT_OF_TREE)
