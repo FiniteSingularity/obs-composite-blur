@@ -77,6 +77,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	signal_handler_connect_ref(sh, "rename", composite_blur_rename, filter);
 	filter->hotkey = OBS_INVALID_HOTKEY_PAIR_ID;
 	filter->radius = 0.0f;
+	filter->inactive_radius = 0.0f;
 	filter->radius_last = -1.0f;
 	filter->time = 0.0f;
 	filter->angle = 0.0f;
@@ -469,6 +470,7 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 
 	filter->center_x = (float)obs_data_get_double(settings, "center_x");
 	filter->center_y = (float)obs_data_get_double(settings, "center_y");
+	filter->inactive_radius = (float)obs_data_get_double(settings, "inactive_radius");
 
 	filter->angle = (float)obs_data_get_double(settings, "angle");
 	filter->tilt_shift_center =
@@ -1263,6 +1265,11 @@ static obs_properties_t *composite_blur_properties(void *data)
 		center_coords, "center_y",
 		obs_module_text("CompositeBlurFilter.Center.Y"), -2160.0,
 		4320.0, 1.0);
+
+	obs_properties_add_float_slider(
+		center_coords, "inactive_radius",
+		obs_module_text("CompositeBlurFilter.Center.InactiveRadius"), 0.0,
+		2500.0, 1.0);
 
 	obs_properties_add_group(
 		props, "center_coordinate",
