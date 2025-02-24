@@ -1,0 +1,156 @@
+#define SAMPLE_FN <SAMPLE_FUNCTION>
+
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform float2 uv_size;
+uniform int channel;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData
+{
+	float4 pos : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+float sample_channel(float4 col)
+{
+	return col[channel];
+}
+
+float luminance(float4 c)
+{
+	return 0.5 * (max(c.r, max(c.g, c.b)) + min(c.r, min(c.g, c.b)));
+	// return 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+}
+
+float saturation(float4 c)
+{
+	float minRgb = min(c.r, min(c.g, c.b));
+	float maxRgb = max(c.r, max(c.g, c.b));
+	float l = 0.5 * (minRgb + maxRgb);
+	return l < 1.0f ? (maxRgb - minRgb) / (1.0f - abs(2.0f * l - 1.0)) : 0.0f;
+}
+
+
+float2 sobel_gradient(float2 coord)
+{
+	float tl = SAMPLE_FN(image.Sample(textureSampler, (coord + float2(-1.0, -1.0)) / uv_size));
+	float tm = SAMPLE_FN(image.Sample(textureSampler, (coord + float2(0.0, -1.0)) / uv_size));
+	float tr = SAMPLE_FN(image.Sample(textureSampler, (coord + float2(1.0, -1.0)) / uv_size));
+	
+	float ml = SAMPLE_FN(image.Sample(textureSampler, (coord + float2(-1.0, 0.0)) / uv_size));
+	float mm = SAMPLE_FN(image.Sample(textureSampler, coord / uv_size));
+	float mr = SAMPLE_FN(image.Sample(textureSampler, (coord + float2(1.0, 0.0)) / uv_size));
+
+	float bl = SAMPLE_FN(image.Sample(textureSampler, (coord + float2(-1.0, 1.0)) / uv_size));
+	float bm = SAMPLE_FN(image.Sample(textureSampler, (coord + float2(0.0, 1.0)) / uv_size));
+	float br = SAMPLE_FN(image.Sample(textureSampler, (coord + float2(1.0, 1.0)) / uv_size));
+
+	float3x3 A =
+	{
+		tl, tm, tr,
+		ml, mm, mr,
+		bl, bm, br
+	};
+
+	float3 b1 = { 1.0, 0, -1.0 };
+	float3 b2 = { 1.0, 2.0, 1.0 };
+
+	float Gx = mul(mul(b1, A), b2);
+	float Gy = mul(mul(b2, A), b1);
+	
+	return float2(Gx, Gy);
+}
+
+float2 central_diff_gradient(float2 coord)
+{
+	float2 dx = coord + float2(1.0, 0.0);
+	float2 dxn = coord - float2(1.0, 0.0);
+	float2 dy = coord + float2(0.0, 1.0);
+	float2 dyn = coord - float2(0.0, 1.0);
+
+	float x =  SAMPLE_FN(image.Sample(textureSampler, dx / uv_size));
+	float xn = SAMPLE_FN(image.Sample(textureSampler, dxn / uv_size));
+	float y =  SAMPLE_FN(image.Sample(textureSampler, dy / uv_size));
+	float yn = SAMPLE_FN(image.Sample(textureSampler, dyn / uv_size));
+
+	float ddx = x - xn;
+	float ddy = y - yn;
+	return 0.5 * float2(ddx, ddy);
+}
+
+float2 forward_diff_gradient(float2 coord)
+{
+	float2 dx = coord + float2(1.0, 0.0);
+	float2 dy = coord + float2(0.0, 1.0);
+	
+	float o = SAMPLE_FN(image.Sample(textureSampler, coord / uv_size));
+	float x = SAMPLE_FN(image.Sample(textureSampler, dx / uv_size));
+	float y = SAMPLE_FN(image.Sample(textureSampler, dy / uv_size));
+
+	float ddx = x - o;
+	float ddy = y - o;
+	return float2(ddx, ddy);
+}
+
+
+VertData mainTransform(VertData v_in)
+{
+	v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	return v_in;
+}
+
+float4 sobelGrad(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float2 grad = sobel_gradient(coord);
+	return float4(grad.x, -grad.x, grad.y, -grad.y);
+}
+
+float4 centralDiffGrad(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float2 grad = central_diff_gradient(coord);
+	return float4(grad.x, -grad.x, grad.y, -grad.y);
+}
+
+float4 forwardDiffGrad(VertData v_in) : TARGET
+{
+	float2 coord = v_in.uv * uv_size;
+	float2 grad = forward_diff_gradient(coord);
+	return float4(grad.x, -grad.x, grad.y, -grad.y);
+}
+
+technique DrawSobelGrad
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = sobelGrad(v_in);
+	}
+}
+
+technique DrawCentralDiffGrad
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = centralDiffGrad(v_in);
+	}
+}
+
+technique DrawForwardDiffGrad
+{
+	pass
+	{
+		vertex_shader = mainTransform(v_in);
+		pixel_shader = forwardDiffGrad(v_in);
+	}
+}

@@ -4,17 +4,17 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - 'docs/**'
-      - '.all-contributorsrc'
-      - 'README.md'
-      - 'LICENSE'
+      - "docs/**"
+      - ".all-contributorsrc"
+      - "README.md"
+      - "LICENSE"
   pull_request:
     branches: [main]
     paths-ignore:
-      - 'docs/**'
-      - '.all-contributorsrc'
-      - 'README.md'
-      - 'LICENSE'
+      - "docs/**"
+      - ".all-contributorsrc"
+      - "README.md"
+      - "LICENSE"
 
 env:
   PLUGIN_NAME: obs-composite-blur
@@ -22,7 +22,7 @@ env:
 jobs:
   macos:
     name: macOS
-    runs-on: macos-12
+    runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
@@ -38,13 +38,13 @@ jobs:
         shell: zsh {0}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4.1.1
         with:
           path: plugin
           submodules: recursive
 
       - name: Checkout obs-studio
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
         with:
           repository: "obsproject/obs-studio"
           path: obs-studio
@@ -88,7 +88,7 @@ jobs:
 
       - name: Restore Compilation Cache
         id: ccache-cache
-        uses: actions/cache@v3.0.11
+        uses: actions/cache@v4.0.0
         with:
           path: ${{ github.workspace }}/.ccache
           key: macos-${{ matrix.arch }}-ccache-plugin-${{ steps.setup.outputs.ccacheDate }}
@@ -142,7 +142,7 @@ jobs:
           codesignPass: ${{ secrets.MACOS_NOTARIZATION_PASSWORD }}
 
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v4.3.1
         with:
           name: ${{ env.PLUGIN_NAME }}-macos-${{ matrix.arch }}-${{ steps.setup.outputs.commitHash }}
           path: ${{ github.workspace }}/plugin/release/${{ env.PLUGIN_NAME }}-*-macos-${{ matrix.arch }}.pkg
@@ -155,13 +155,13 @@ jobs:
         ubuntu: ["ubuntu-20.04", "ubuntu-22.04"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4.1.1
         with:
           repository: obsproject/obs-studio
           ref: ${{ env.OBS_VERSION }}
           submodules: "recursive"
       - name: "Checkout plugin"
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4.1.1
         with:
           path: plugins/${{ env.PLUGIN_NAME }}
       - name: Add plugin to obs cmake
@@ -191,7 +191,7 @@ jobs:
           mv ./plugins/${{ env.PLUGIN_NAME }}/data ./${{ env.PLUGIN_NAME }}/data
           tar -cvzf "${FILE_NAME}" ${{ env.PLUGIN_NAME }}
       - name: "Publish"
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v4.3.1
         with:
           name: "${{ env.FILE_NAME }}"
           path: "*.tar.gz"
@@ -218,13 +218,13 @@ jobs:
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.1.3
       - name: Checkout obs
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4.1.1
         with:
           repository: obsproject/obs-studio
           ref: ${{ env.OBS_VERSION }}
           submodules: "recursive"
       - name: Checkout plugin
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v4.1.1
         with:
           path: plugins/${{ env.PLUGIN_NAME}}
       - name: Add plugin to obs cmake
@@ -261,13 +261,13 @@ jobs:
           exit 0
       - name: Publish zip
         if: success()
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v4.3.1
         with:
           name: "${{ env.FILE_NAME }}"
           path: package/*
       - name: Publish Installer Files
-        if: success()
-        uses: actions/upload-artifact@v3.1.1
+        if: success() && matrix.target == 'x64'
+        uses: actions/upload-artifact@v4.3.1
         with:
           name: "installer-files"
           path: installer/*
@@ -293,23 +293,23 @@ jobs:
           Write-Output "Setting up signing pin- ::add-mask::${{ secrets.SIGNING_KEY_PIN }}"
           Write-Output "Setting up signing org- ${{ secrets.SIGNING_ORG }}"
       - name: Retrieve x86 build
-        uses: actions/download-artifact@v3.0.1
+        uses: actions/download-artifact@v4.1.2
         with:
           name: "${{ env.FILE_NAME_X86 }}"
           path: ./package
       - name: Retrieve x64 build
-        uses: actions/download-artifact@v3.0.1
+        uses: actions/download-artifact@v4.1.2
         with:
           name: "${{ env.FILE_NAME_X64 }}"
           path: ./package
       - name: Retrieve installer files
-        uses: actions/download-artifact@v3.0.1
+        uses: actions/download-artifact@v4.1.2
         with:
           name: "installer-files"
           path: .
       - name: Publish zip
         if: success()
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v4.3.1
         with:
           name: "${{ env.FILE_NAME }}"
           path: package/*
@@ -318,12 +318,12 @@ jobs:
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /Qp ".\installer.iss"
       - name: Publish installer
         if: success()
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v4.3.1
         with:
           name: "${{ env.FILE_NAME }}-installer"
           path: package/*.exe
       - name: Remove temp artifacts
-        uses: geekyeggo/delete-artifact@v2.0.0
+        uses: geekyeggo/delete-artifact@v5
         with:
           name: "${{ env.FILE_NAME_X86 }}\n${{ env.FILE_NAME_X64 }}\ninstaller-files"
 
@@ -349,12 +349,12 @@ jobs:
           Write-Output "Setting up signing pin- ::add-mask::${{ secrets.SIGNING_KEY_PIN }}"
           Write-Output "Setting up signing org- ${{ secrets.SIGNING_ORG }}"
       - name: Retrieve x86 build
-        uses: actions/download-artifact@v3.0.1
+        uses: actions/download-artifact@v4.1.2
         with:
           name: "${{ env.FILE_NAME_X86 }}"
           path: ./package
       - name: Retrieve x64 build
-        uses: actions/download-artifact@v3.0.1
+        uses: actions/download-artifact@v4.1.2
         with:
           name: "${{ env.FILE_NAME_X64 }}"
           path: ./package
@@ -363,7 +363,7 @@ jobs:
           curl "-kL" "https://www.mgtek.com/files/smartcardtools.zip" "-f" "--retry" "5" "-o" "smartcardtools.zip"
           7z x smartcardtools.zip -o"./smartcardtools"
       - name: Retrieve installer files
-        uses: actions/download-artifact@v3.0.1
+        uses: actions/download-artifact@v4.1.2
         with:
           name: "installer-files"
           path: .
@@ -377,7 +377,7 @@ jobs:
           & '.\smartcardtools\x86\ScSignTool.exe' -pin ${{ secrets.SIGNING_KEY_PIN }} sign /fd sha256 /tr http://ts.ssl.com /td sha256 /n '${{ secrets.SIGNING_ORG }}' .\package\obs-plugins\64bit\${{ env.PLUGIN_NAME }}.dll
       - name: Publish zip
         if: success()
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v4.3.1
         with:
           name: "${{ env.FILE_NAME }}"
           path: package/*
@@ -393,12 +393,12 @@ jobs:
           & '.\smartcardtools\x86\ScSignTool.exe' -pin ${{ secrets.SIGNING_KEY_PIN }} sign /fd sha256 /tr http://ts.ssl.com /td sha256 /n '${{ secrets.SIGNING_ORG }}' .\package\${{ env.PLUGIN_NAME }}-installer.exe
       - name: Publish installer
         if: success()
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v4.3.1
         with:
           name: "${{ env.FILE_NAME }}-installer"
           path: package/*.exe
       - name: Remove temp artifacts
-        uses: geekyeggo/delete-artifact@v2.0.0
+        uses: geekyeggo/delete-artifact@v5
         with:
           name: "${{ env.FILE_NAME_X86 }}\n${{ env.FILE_NAME_X64 }}\ninstaller-files"
       - name: Cleanup

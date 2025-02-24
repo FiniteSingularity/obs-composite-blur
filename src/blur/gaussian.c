@@ -1,4 +1,5 @@
 #include "gaussian.h"
+#include "dual_kawase.h"
 
 void set_gaussian_blur_types(obs_properties_t *props)
 {
@@ -12,6 +13,8 @@ void set_gaussian_blur_types(obs_properties_t *props)
 				  TYPE_ZOOM);
 	obs_property_list_add_int(p, obs_module_text(TYPE_MOTION_LABEL),
 				  TYPE_MOTION);
+	obs_property_list_add_int(p, obs_module_text(TYPE_VECTOR_LABEL),
+				  TYPE_VECTOR);
 }
 
 void gaussian_setup_callbacks(composite_blur_filter_data_t *data)
@@ -26,6 +29,11 @@ void update_gaussian(composite_blur_filter_data_t *data)
 	if (data->radius != data->radius_last) {
 		data->radius_last = data->radius;
 		sample_kernel(data->radius, data);
+	}
+	if (data->vector_blur_amount != data->last_vector_blur_amount) {
+		data->last_vector_blur_amount = data->vector_blur_amount;
+		float blur_radius = fabsf(data->vector_blur_amount);
+		sample_kernel(blur_radius, data);
 	}
 }
 
@@ -43,6 +51,9 @@ void render_video_gaussian(composite_blur_filter_data_t *data)
 		break;
 	case TYPE_MOTION:
 		gaussian_motion_blur(data);
+		break;
+	case TYPE_VECTOR:
+		gaussian_vector_blur(data);
 		break;
 	}
 }
@@ -62,7 +73,26 @@ void load_effect_gaussian(composite_blur_filter_data_t *filter)
 	case TYPE_MOTION:
 		load_motion_gaussian_effect(filter);
 		break;
+	case TYPE_VECTOR:
+		load_vector_gaussian_effect(filter);
+		load_gradient_effect(filter);
+		load_effect_dual_kawase(filter);
+		break;
 	}
+}
+
+extern bool vector_channel_modified(void* data, obs_properties_t* props,
+	obs_property_t* p,
+	obs_data_t* settings)
+{
+	UNUSED_PARAMETER(props);
+	UNUSED_PARAMETER(p);
+	UNUSED_PARAMETER(settings);
+	int channel = (int)obs_data_get_int(settings, "vector_blur_channel");
+	composite_blur_filter_data_t* filter = data;
+	filter->vector_blur_channel = channel;
+	load_gradient_effect(filter);
+	return false;
 }
 
 /*
@@ -417,6 +447,231 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 	gs_blend_state_pop();
 }
 
+
+/*
+ *  Performs a vector blur using the gaussian kernel. Blur for a pixel
+ *  is performed in direction of the image gradient.
+ */
+static void gaussian_vector_blur(composite_blur_filter_data_t* data)
+{
+	gaussian_vector_gradient(data);
+
+	//gs_texrender_t* tmp = data->output_texrender;
+	//data->output_texrender = data->vb_gradient;
+	//data->vb_gradient = tmp;
+	//return;
+
+	gaussian_vector_smooth_gradient(data);
+	//gs_texrender_t* tmp = data->output_texrender;
+	//data->output_texrender = data->vb_smoothed_gradient;
+	//data->vb_smoothed_gradient = tmp;
+	//return;
+
+	gaussian_vector_apply_blur(data);
+}
+
+static void gaussian_vector_gradient(composite_blur_filter_data_t* data)
+{
+	gs_effect_t* effect = data->gradient_effect;
+	gs_texture_t* texture = NULL;
+
+	gs_texrender_t* source_render = NULL;
+
+	if (data->vector_blur_source) {
+		obs_source_t* source = obs_weak_source_get_source(
+			data->vector_blur_source);
+
+		if (!source) {
+			return;
+		}
+
+		const enum gs_color_space preferred_spaces[] = {
+			GS_CS_SRGB_16F,
+			GS_CS_709_EXTENDED,
+			//GS_CS_SRGB,
+		};
+		const enum gs_color_space space = obs_source_get_color_space(
+			source, OBS_COUNTOF(preferred_spaces),
+			preferred_spaces);
+		const enum gs_color_format format =
+			gs_get_format_from_space(space);
+
+		// Set up a tex renderer for source
+		source_render = gs_texrender_create(format, GS_ZS_NONE);
+		uint32_t base_width = obs_source_get_width(source);
+		uint32_t base_height = obs_source_get_height(source);
+		gs_blend_state_push();
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
+		if (gs_texrender_begin_with_color_space(
+			source_render, base_width, base_height, space)) {
+			const float w = (float)base_width;
+			const float h = (float)base_height;
+			struct vec4 clear_color;
+			vec4_zero(&clear_color);
+			gs_clear(GS_CLEAR_COLOR, &clear_color, 0.0f, 0);
+			gs_ortho(0.0f, w, 0.0f, h, -100.0f, 100.0f);
+			obs_source_video_render(source);
+			gs_texrender_end(source_render);
+		}
+		gs_blend_state_pop();
+		obs_source_release(source);
+		texture = gs_texrender_get_texture(source_render);
+	} else {
+		texture = gs_texrender_get_texture(data->input_texrender);
+	}
+
+
+
+	if (!effect || !texture) {
+		return;
+	}
+	
+	// 1. Single pass- blur only in one direction
+	gs_eparam_t* image = gs_effect_get_param_by_name(effect, "image");
+	gs_effect_set_texture(image, texture);
+	if (data->param_gradient_image) {
+		gs_effect_set_texture(data->param_gradient_image, texture);
+	}
+
+	// If we are doing the channel thing, change channel...
+	if (data->param_gradient_channel) {
+		gs_effect_set_int(data->param_gradient_channel, data->vector_blur_channel);
+	}
+	//const char* technique = data->vector_blur_channel < 4 ? "DrawChannelGrad" : data->vector_blur_channel == 4 ? "DrawLuminanceGrad" : "DrawSaturationGrad";
+	const char* technique = data->vector_blur_type == GRADIENT_TYPE_SOBEL ? "DrawSobelGrad" :
+		data->vector_blur_type == GRADIENT_TYPE_CENTRAL_LIMIT_DIFF ? "DrawCentralDiffGrad" :
+		"DrawForwardDiffGrad";
+	struct vec2 uv_size;
+	uv_size.x = (float)data->width;
+	uv_size.y = (float)data->height;
+	if (data->param_gradient_uv_size) {
+		gs_effect_set_vec2(data->param_gradient_uv_size, &uv_size);
+	}
+
+	set_blending_parameters();
+
+	data->vb_gradient = create_or_reset_texrender(data->vb_gradient);
+
+	if (gs_texrender_begin(data->vb_gradient, data->width,
+		data->height)) {
+		gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height,
+			-100.0f, 100.0f);
+		while (gs_effect_loop(effect, technique))
+			gs_draw_sprite(texture, 0, data->width, data->height);
+		gs_texrender_end(data->vb_gradient);
+	}
+
+	if (source_render) {
+		gs_texrender_destroy(source_render);
+	}
+
+	gs_blend_state_pop();
+}
+
+static void gaussian_vector_smooth_gradient(composite_blur_filter_data_t* data)
+{
+	if (!data->vb_smoothed_gradient) {
+		data->vb_smoothed_gradient = gs_texrender_create(GS_RGBA, GS_ZS_NONE);
+	}
+
+	data->kawase_passes = data->vector_blur_smoothing + 1.0f;
+
+	gs_texrender_t* tmp = data->input_texrender;
+	data->input_texrender = data->vb_gradient;
+	data->vb_gradient = tmp;
+
+	render_video_dual_kawase(data);
+
+	tmp = data->input_texrender;
+	data->input_texrender = data->vb_gradient;
+	data->vb_gradient = tmp;
+
+	tmp = data->output_texrender;
+	data->output_texrender = data->vb_smoothed_gradient;
+	data->vb_smoothed_gradient = tmp;
+}
+
+static void gaussian_vector_apply_blur(composite_blur_filter_data_t* data)
+{
+	gs_effect_t* effect = data->gv_effect;
+	gs_texture_t* texture = gs_texrender_get_texture(data->input_texrender);
+
+	if (!effect || !texture) {
+		return;
+	}
+
+	if (fabsf(data->vector_blur_amount) < MIN_GAUSSIAN_BLUR_RADIUS) {
+		data->output_texrender =
+			create_or_reset_texrender(data->output_texrender);
+		texrender_set_texture(texture, data->output_texrender);
+		return;
+	}
+
+	texture = blend_composite(texture, data);
+
+	// 1. Single pass- blur only in one direction
+	gs_eparam_t* image = gs_effect_get_param_by_name(effect, "image");
+	gs_effect_set_texture(image, texture);
+
+	switch (data->device_type) {
+	case GS_DEVICE_DIRECT3D_11:
+		if (data->param_weight) {
+			gs_effect_set_val(data->param_weight,
+				data->kernel.array,
+				data->kernel.num * sizeof(float));
+		}
+		if (data->param_offset) {
+			gs_effect_set_val(data->param_offset,
+				data->offset.array,
+				data->offset.num * sizeof(float));
+		}
+		break;
+	case GS_DEVICE_OPENGL:
+		if (data->param_kernel_texture) {
+			gs_effect_set_texture(data->param_kernel_texture,
+				data->kernel_texture);
+		}
+		break;
+	}
+
+	if (data->param_radius) {
+		gs_effect_set_float(data->param_radius, data->vector_blur_amount);
+	}
+
+	const int k_size = (int)data->kernel_size;
+	if (data->param_kernel_size) {
+		gs_effect_set_int(data->param_kernel_size, k_size);
+	}
+
+	struct vec2 uv_size;
+	uv_size.x = (float)data->width;
+	uv_size.y = (float)data->height;
+	if (data->param_uv_size) {
+		gs_effect_set_vec2(data->param_uv_size, &uv_size);
+	}
+
+	if (data->param_gradient_map) {
+		gs_texture_t* gradient_map = gs_texrender_get_texture(data->vb_smoothed_gradient);
+		gs_effect_set_texture(data->param_gradient_map, gradient_map);
+	}
+
+	set_blending_parameters();
+
+	data->output_texrender =
+		create_or_reset_texrender(data->output_texrender);
+
+	if (gs_texrender_begin(data->output_texrender, data->width,
+		data->height)) {
+		gs_ortho(0.0f, (float)data->width, 0.0f, (float)data->height,
+			-100.0f, 100.0f);
+		while (gs_effect_loop(effect, "Draw"))
+			gs_draw_sprite(texture, 0, data->width, data->height);
+		gs_texrender_end(data->output_texrender);
+	}
+
+	gs_blend_state_pop();
+}
+
 static void load_1d_gaussian_effect(composite_blur_filter_data_t *filter)
 {
 	if (filter->effect != NULL) {
@@ -538,6 +793,128 @@ static void load_radial_gaussian_effect(composite_blur_filter_data_t *filter)
 	}
 }
 
+static void load_vector_gaussian_effect(composite_blur_filter_data_t* filter)
+{
+	if (filter->gv_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->gv_effect);
+		filter->gv_effect = NULL;
+		obs_leave_graphics();
+	}
+
+	const char* effect_file_path =
+		filter->device_type == GS_DEVICE_DIRECT3D_11
+		? "/shaders/gaussian_vector.effect"
+		: "/shaders/gaussian_vector_texture.effect";
+
+	filter->gv_effect = load_shader_effect(filter->gv_effect, effect_file_path);
+	if (filter->gv_effect) {
+		size_t effect_count = gs_effect_get_num_params(filter->gv_effect);
+		for (size_t effect_index = 0; effect_index < effect_count;
+			effect_index++) {
+			gs_eparam_t* param = gs_effect_get_param_by_idx(
+				filter->gv_effect, effect_index);
+			struct gs_effect_param_info info;
+			gs_effect_get_param_info(param, &info);
+			if (strcmp(info.name, "uv_size") == 0) {
+				filter->param_uv_size = param;
+			}
+			else if (strcmp(info.name, "gradient") == 0) {
+				filter->param_gradient_map = param;
+			}
+			else if (strcmp(info.name, "offset") == 0) {
+				filter->param_offset = param;
+			}
+			else if (strcmp(info.name, "weight") == 0) {
+				filter->param_weight = param;
+			}
+			else if (strcmp(info.name, "kernel_size") == 0) {
+				filter->param_kernel_size = param;
+			}
+			else if (strcmp(info.name, "kernel_texture") == 0) {
+				filter->param_kernel_texture = param;
+			}
+			else if (strcmp(info.name, "blur_radius") == 0) {
+				filter->param_radius = param;
+			}
+		}
+	}
+}
+
+gs_effect_t* load_gradient_shader_effect(gs_effect_t* effect,
+	const char* effect_file_path, const char* sample_type)
+{
+	if (effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(effect);
+		effect = NULL;
+		obs_leave_graphics();
+	}
+	char* shader_text = NULL;
+	struct dstr filename = { 0 };
+	dstr_cat(&filename, obs_get_module_data_path(obs_current_module()));
+	dstr_cat(&filename, effect_file_path);
+	shader_text = load_shader_from_file(filename.array);
+	char* errors = NULL;
+	struct dstr shader_dstr = { 0 };
+	dstr_init_copy(&shader_dstr, shader_text);
+	dstr_replace(&shader_dstr, "<SAMPLE_FUNCTION>", sample_type);
+	obs_enter_graphics();
+	effect = gs_effect_create(shader_dstr.array, NULL, &errors);
+	obs_leave_graphics();
+
+	dstr_free(&shader_dstr);
+	bfree(shader_text);
+
+	if (effect == NULL) {
+		blog(LOG_WARNING,
+			"[obs-composite-blur] Unable to load .effect file.  Errors:\n%s",
+			(errors == NULL || strlen(errors) == 0 ? "(None)"
+				: errors));
+		bfree(errors);
+	}
+
+	dstr_free(&filename);
+
+	return effect;
+}
+
+static void load_gradient_effect(composite_blur_filter_data_t* filter)
+{
+	if (filter->gradient_effect != NULL) {
+		obs_enter_graphics();
+		gs_effect_destroy(filter->gradient_effect);
+		filter->gradient_effect = NULL;
+		obs_leave_graphics();
+	}
+
+	const char* effect_file_path = "/shaders/gradient_map.effect";
+	const char* sample_type = filter->vector_blur_channel == GRADIENT_CHANNEL_LUMINANCE ? "luminance" :
+		filter->vector_blur_channel == GRADIENT_CHANNEL_SATURATION ? "saturation" :
+		"sample_channel";
+
+	filter->gradient_effect = load_gradient_shader_effect(filter->gradient_effect, effect_file_path, sample_type);
+	if (filter->gradient_effect) {
+		size_t effect_count = gs_effect_get_num_params(filter->gradient_effect);
+		for (size_t effect_index = 0; effect_index < effect_count;
+			effect_index++) {
+			gs_eparam_t* param = gs_effect_get_param_by_idx(
+				filter->gradient_effect, effect_index);
+			struct gs_effect_param_info info;
+			gs_effect_get_param_info(param, &info);
+			if (strcmp(info.name, "uv_size") == 0) {
+				filter->param_gradient_uv_size = param;
+			}
+			else if (strcmp(info.name, "image") == 0) {
+				filter->param_gradient_image = param;
+			}
+			else if (strcmp(info.name, "channel") == 0) {
+				filter->param_gradient_channel = param;
+			}
+		}
+	}
+}
+
 static void sample_kernel(float radius, composite_blur_filter_data_t *filter)
 {
 	const size_t max_size = 128;
@@ -594,7 +971,6 @@ static void sample_kernel(float radius, composite_blur_filter_data_t *filter)
 		}
 		da_push_back(d_weights, &weight);
 	}
-
 	fDarray d_offsets;
 	da_init(d_offsets);
 
@@ -654,7 +1030,6 @@ static void sample_kernel(float radius, composite_blur_filter_data_t *filter)
 	}
 	da_free(filter->kernel);
 	filter->kernel = weights;
-
 	for (size_t i = 0; i < padding; i++) {
 		float pad = 0.0f;
 		da_push_back(offsets, &pad);
