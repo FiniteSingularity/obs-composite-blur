@@ -56,6 +56,8 @@
 #define PIXELATE_TYPE_TRIANGLE_LABEL "CompositeBlurFilter.Pixelate.Triangle"
 #define PIXELATE_TYPE_VORONOI 5
 #define PIXELATE_TYPE_VORONOI_LABEL "CompositeBlurFilter.Pixelate.Voronoi"
+#define PIXELATE_TYPE_RHOMBOID 6
+#define PIXELATE_TYPE_RHOMBOID_LABEL "CompositeBlurFilter.Pixelate.Rhomboid"
 
 #define EFFECT_MASK_TYPE_NONE 0
 #define EFFECT_MASK_TYPE_NONE_LABEL "CompositeBlurFilter.EffectMask.None"

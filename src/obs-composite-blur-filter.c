@@ -317,7 +317,7 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		(int)obs_data_get_int(settings, "pixelate_type");
 
 	filter->temporal_current_weight =
-		(float)obs_data_get_double(settings, "temporal_current_weight");
+		1.0f - (float)obs_data_get_double(settings, "temporal_current_weight") * 0.94f;
 
 	if (filter->pixelate_type != filter->pixelate_type_last) {
 		filter->pixelate_type_last = filter->pixelate_type;
@@ -1114,6 +1114,12 @@ static obs_properties_t *composite_blur_properties(void *data)
 	obs_property_list_add_int(pixelate_types,
 				  obs_module_text(PIXELATE_TYPE_VORONOI_LABEL),
 				  PIXELATE_TYPE_VORONOI);
+	obs_property_list_add_int(pixelate_types,
+				  obs_module_text(PIXELATE_TYPE_RHOMBOID_LABEL),
+				  PIXELATE_TYPE_RHOMBOID);
+	obs_property_list_add_int(pixelate_types,
+				  obs_module_text(PIXELATE_TYPE_TRIAKIS_LABEL),
+				  PIXELATE_TYPE_TRIAKIS);
 
 	obs_property_set_modified_callback(pixelate_types,
 		setting_pixelate_animate_modified);
@@ -1190,8 +1196,8 @@ static obs_properties_t *composite_blur_properties(void *data)
 		OBS_GROUP_NORMAL, vector_blur);
 
 	obs_properties_add_float_slider(
-		props, "temporal_current_weight", obs_module_text("CompositeBlurFilter.Temporal.CurrentWeight"),
-		0.01, 1.0, 0.01);
+		props, "temporal_current_weight", obs_module_text("CompositeBlurFilter.Temporal.Amount"),
+		0.0, 1.0, 0.01);
 
 	obs_properties_add_float_slider(
 		props, "pixelate_smoothing_pct",
