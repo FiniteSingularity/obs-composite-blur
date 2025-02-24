@@ -573,7 +573,7 @@ static void gaussian_vector_smooth_gradient(composite_blur_filter_data_t* data)
 	if (!data->vb_smoothed_gradient) {
 		data->vb_smoothed_gradient = gs_texrender_create(GS_RGBA, GS_ZS_NONE);
 	}
-	data->kawase_passes = (int)data->vector_blur_smoothing + 1;
+	data->kawase_passes = (int)(data->vector_blur_smoothing) + 1;
 
 	gs_texrender_t* tmp = data->input_texrender;
 	data->input_texrender = data->vb_gradient;
@@ -970,7 +970,6 @@ static void sample_kernel(float radius, composite_blur_filter_data_t *filter)
 		}
 		da_push_back(d_weights, &weight);
 	}
-	float tmp = d_weights.array[10];
 	fDarray d_offsets;
 	da_init(d_offsets);
 
@@ -1030,7 +1029,6 @@ static void sample_kernel(float radius, composite_blur_filter_data_t *filter)
 	}
 	da_free(filter->kernel);
 	filter->kernel = weights;
-	float tmp2 = filter->kernel.array[10];
 	for (size_t i = 0; i < padding; i++) {
 		float pad = 0.0f;
 		da_push_back(offsets, &pad);
