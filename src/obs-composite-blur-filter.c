@@ -44,6 +44,7 @@ static void composite_blur_defaults(obs_data_t *settings)
 		settings, "effect_mask_source_filter_multiplier", 1.0);
 	obs_data_set_default_double(settings, "pixelate_origin_x", -1.e9);
 	obs_data_set_default_double(settings, "pixelate_origin_y", -1.e9);
+	obs_data_set_default_double(settings, "pixelate_animation_speed", 50.0);
 	obs_data_set_default_double(settings, "effect_mask_circle_center_x",
 				    50.0);
 	obs_data_set_default_double(settings, "effect_mask_circle_center_y",
@@ -1825,6 +1826,7 @@ static bool settings_blur_area(obs_properties_t *props, obs_data_t *settings)
 	setting_visibility("center_coordinate", false, props);
 	setting_visibility("background", true, props);
 	setting_visibility("tilt_shift_bounds", false, props);
+	setting_visibility("vector_group", false, props);
 	return true;
 }
 
@@ -1835,6 +1837,7 @@ static bool settings_blur_directional(obs_properties_t *props)
 	setting_visibility("center_coordinate", false, props);
 	setting_visibility("background", true, props);
 	setting_visibility("tilt_shift_bounds", false, props);
+	setting_visibility("vector_group", false, props);
 	return true;
 }
 
@@ -1845,6 +1848,7 @@ static bool settings_blur_zoom(obs_properties_t *props)
 	setting_visibility("center_coordinate", true, props);
 	setting_visibility("background", true, props);
 	setting_visibility("tilt_shift_bounds", false, props);
+	setting_visibility("vector_group", false, props);
 	return true;
 }
 
@@ -1855,6 +1859,7 @@ static bool settings_blur_tilt_shift(obs_properties_t *props)
 	setting_visibility("center_coordinate", false, props);
 	setting_visibility("background", true, props);
 	setting_visibility("tilt_shift_bounds", true, props);
+	setting_visibility("vector_group", false, props);
 	return true;
 }
 
@@ -1865,6 +1870,7 @@ static bool settings_blur_vector(obs_properties_t* props, composite_blur_filter_
 	setting_visibility("center_coordinate", false, props);
 	setting_visibility("background", true, props);
 	setting_visibility("tilt_shift_bounds", false, props);
+	setting_visibility("vector_group", true, props);
 	// TODO: Adjust visibility of our vector settings.
 	filter->last_vector_blur_amount = -999999.0;
 	return true;
