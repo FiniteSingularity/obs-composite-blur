@@ -80,7 +80,7 @@ if(BUILD_OUT_OF_TREE)
     set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "")
     install(TARGETS ${PROJECT_NAME}
         LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIB_OUT_DIR})
-    install(DIRECTORY data/locale
+    install(DIRECTORY data/locale data/shaders
         DESTINATION ${CMAKE_INSTALL_PREFIX}/${DATA_OUT_DIR})
     setup_plugin_target(${PROJECT_NAME})
 else()
