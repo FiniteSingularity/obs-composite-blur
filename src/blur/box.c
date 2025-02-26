@@ -206,7 +206,8 @@ static void box_directional_blur(composite_blur_filter_data_t *data)
 }
 
 /*
- *  Performs a zoom blur using the box kernel. Blur for a pixel
+ *  Performs a 
+ blur using the box kernel. Blur for a pixel
  *  is performed in direction of zoom center point.  Blur increases
  *  as pixels move away from center point.
  */

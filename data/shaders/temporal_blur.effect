@@ -5,6 +5,7 @@ uniform texture2d image;
 uniform texture2d prior_image;
 //uniform texture2d background;
 uniform float current_weight;
+uniform float clear_threshold;
 
 
 sampler_state textureSampler{
@@ -30,11 +31,12 @@ VertData mainTransform(VertData v_in)
 
 float4 mainImage(VertData v_in) : TARGET
 {
-	float4 col = image.Sample(textureSampler, v_in.uv) * current_weight;
-	float4 col_prior = prior_image.Sample(textureSampler, v_in.uv) * (1.0 - current_weight);
-	float4 col_out = col + col_prior;
-	float4 threshold = float4(0.004, 0.004, 0.004, 0.004);
-	return step(threshold, col_out) * col_out;
+	float4 col = image.Sample(textureSampler, v_in.uv);
+	float4 col_prior = prior_image.Sample(textureSampler, v_in.uv);
+	//float4 col_out = col * current_weight + col_prior * (1.0 - current_weight);
+	float4 col_out = lerp(col_prior, col, current_weight);
+	float clear = step(distance(col_out, col), clear_threshold);
+	return lerp(col_out, col, clear);
 }
 
 // An in-progress version of background compositing that should be more accurate,
