@@ -44,6 +44,8 @@ static void composite_blur_defaults(obs_data_t *settings)
 		settings, "effect_mask_source_filter_multiplier", 1.0);
 	obs_data_set_default_double(settings, "pixelate_origin_x", -1.e9);
 	obs_data_set_default_double(settings, "pixelate_origin_y", -1.e9);
+	obs_data_set_default_double(settings, "", -1.e9);
+	obs_data_set_default_double(settings, "", -1.e9);
 	obs_data_set_default_double(settings, "pixelate_animation_speed", 50.0);
 	obs_data_set_default_double(settings, "effect_mask_circle_center_x",
 				    50.0);
@@ -64,6 +66,9 @@ static void composite_blur_defaults(obs_data_t *settings)
 	obs_data_set_default_double(settings, "effect_mask_crop_left", 20.0);
 	obs_data_set_default_double(settings, "effect_mask_crop_right", 20.0);
 	obs_data_set_default_string(settings, "vector_source", "");
+	obs_data_set_default_double(settings, "temporal_current_weight", 0.95);
+	obs_data_set_default_double(settings, "temporal_clear_threshold", 5.0);
+
 }
 
 static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
@@ -77,6 +82,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	signal_handler_connect_ref(sh, "rename", composite_blur_rename, filter);
 	filter->hotkey = OBS_INVALID_HOTKEY_PAIR_ID;
 	filter->radius = 0.0f;
+	filter->inactive_radius = 0.0f;
 	filter->radius_last = -1.0f;
 	filter->time = 0.0f;
 	filter->angle = 0.0f;
@@ -138,6 +144,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->param_temporal_image = NULL;
 	filter->param_temporal_prior_image = NULL;
 	filter->param_temporal_current_weight = NULL;
+	filter->param_temporal_clear_threshold = NULL;
 
 	filter->mask_image = NULL;
 
@@ -319,6 +326,8 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 	filter->temporal_current_weight =
 		1.0f - (float)obs_data_get_double(settings, "temporal_current_weight") * 0.94f;
 
+	filter->temporal_clear_threshold = (float)obs_data_get_double(settings, "temporal_clear_threshold") / 100.0f;
+
 	if (filter->pixelate_type != filter->pixelate_type_last) {
 		filter->pixelate_type_last = filter->pixelate_type;
 		filter->reload = true;
@@ -469,6 +478,7 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 
 	filter->center_x = (float)obs_data_get_double(settings, "center_x");
 	filter->center_y = (float)obs_data_get_double(settings, "center_y");
+	filter->inactive_radius = (float)obs_data_get_double(settings, "inactive_radius");
 
 	filter->angle = (float)obs_data_get_double(settings, "angle");
 	filter->tilt_shift_center =
@@ -1124,9 +1134,10 @@ static obs_properties_t *composite_blur_properties(void *data)
 	obs_property_set_modified_callback(pixelate_types,
 		setting_pixelate_animate_modified);
 
-	obs_properties_add_float_slider(
+	obs_property_t* p = obs_properties_add_float_slider(
 		props, "radius", obs_module_text("CompositeBlurFilter.Radius"),
 		0.0, 80.1, 0.1);
+	obs_property_float_set_suffix(p, "px");
 
 	obs_properties_t* vector_blur = obs_properties_create();
 
@@ -1181,10 +1192,11 @@ static obs_properties_t *composite_blur_properties(void *data)
 		obs_module_text(GRADIENT_TYPE_FORWARD_DIFF_LABEL),
 		GRADIENT_TYPE_FORWARD_DIFF);
 
-	obs_properties_add_float_slider(
+	p = obs_properties_add_float_slider(
 		vector_blur, "vector_blur_amount",
 		obs_module_text("CompositeBlurFilter.VectorBlur.Amount"),
 		-100.0, 100.0, 0.1);
+	obs_property_float_set_suffix(p, "%");
 
 	obs_properties_add_float_slider(
 		vector_blur, "vector_blur_smoothing",
@@ -1199,25 +1211,35 @@ static obs_properties_t *composite_blur_properties(void *data)
 		props, "temporal_current_weight", obs_module_text("CompositeBlurFilter.Temporal.Amount"),
 		0.0, 1.0, 0.01);
 
-	obs_properties_add_float_slider(
+	obs_property_t* clear_threshold = obs_properties_add_float_slider(
+		props, "temporal_clear_threshold", obs_module_text("CompositeBlurFilter.Temporal.ClearThreshold"),
+		0.0, 100.0, 0.1);
+
+	obs_property_float_set_suffix(clear_threshold, "%");
+
+	p = obs_properties_add_float_slider(
 		props, "pixelate_smoothing_pct",
 		obs_module_text("CompositeBlurFilter.Pixelate.Smoothing"), 0.0,
 		100.0, 0.1);
+	obs_property_float_set_suffix(p, "%");
 
-	obs_properties_add_float_slider(
+	p = obs_properties_add_float_slider(
 		props, "pixelate_origin_x",
 		obs_module_text("CompositeBlurFilter.Pixelate.Origin_X"),
 		-6000.0, 6000.0, 0.1);
+	obs_property_float_set_suffix(p, "px");
 
-	obs_properties_add_float_slider(
+	p = obs_properties_add_float_slider(
 		props, "pixelate_origin_y",
 		obs_module_text("CompositeBlurFilter.Pixelate.Origin_Y"),
 		-6000.0, 6000.0, 0.1);
+	obs_property_float_set_suffix(p, "px");
 
-	obs_properties_add_float_slider(
+	p = obs_properties_add_float_slider(
 		props, "pixelate_rotation",
 		obs_module_text("CompositeBlurFilter.Pixelate.Rotation"),
 		-360.0, 360.0, 0.1);
+	obs_property_float_set_suffix(p, "deg");
 
 	obs_property_t *animate_p = obs_properties_add_bool(
 		props, "pixelate_animate",
@@ -1227,11 +1249,12 @@ static obs_properties_t *composite_blur_properties(void *data)
 	obs_property_set_modified_callback(animate_p,
 		setting_pixelate_animate_modified);
 
-	obs_properties_add_float(
+	p = obs_properties_add_float(
 		props, "pixelate_time",
 		obs_module_text("CompositeBlurFilter.Pixelate.Time"),
 		0.0, 1000000.0, 0.01
 	);
+	obs_property_float_set_suffix(p, "s");
 
 	obs_properties_add_float_slider(
 		props, "pixelate_animation_speed",
@@ -1243,26 +1266,36 @@ static obs_properties_t *composite_blur_properties(void *data)
 		props, "passes",
 		obs_module_text("CompositeBlurFilter.Box.Passes"), 1, 5, 1);
 
-	obs_properties_add_float_slider(
+	p = obs_properties_add_float_slider(
 		props, "kawase_passes",
 		obs_module_text("CompositeBlurFilter.DualKawase.Passes"), 0.0,
 		1025.0, 0.01);
+	obs_property_float_set_suffix(p, "px");
 
-	obs_properties_add_float_slider(
+	p = obs_properties_add_float_slider(
 		props, "angle", obs_module_text("CompositeBlurFilter.Angle"),
 		-360.0, 360.1, 0.1);
+	obs_property_float_set_suffix(p, "deg");
 
 	obs_properties_t *center_coords = obs_properties_create();
 
-	obs_properties_add_float_slider(
+	p = obs_properties_add_float_slider(
 		center_coords, "center_x",
 		obs_module_text("CompositeBlurFilter.Center.X"), -3840.0,
 		7680.0, 1.0);
+	obs_property_float_set_suffix(p, "px");
 
-	obs_properties_add_float_slider(
+	p = obs_properties_add_float_slider(
 		center_coords, "center_y",
 		obs_module_text("CompositeBlurFilter.Center.Y"), -2160.0,
 		4320.0, 1.0);
+	obs_property_float_set_suffix(p, "px");
+
+	p = obs_properties_add_float_slider(
+		center_coords, "inactive_radius",
+		obs_module_text("CompositeBlurFilter.Center.InactiveRadius"), 0.0,
+		2500.0, 1.0);
+	obs_property_float_set_suffix(p, "px");
 
 	obs_properties_add_group(
 		props, "center_coordinate",
@@ -1274,10 +1307,13 @@ static obs_properties_t *composite_blur_properties(void *data)
 		tilt_shift_bounds, "tilt_shift_center",
 		obs_module_text("CompositeBlurFilter.TiltShift.Center"), 0.0,
 		1.0, 0.01);
-	obs_properties_add_float_slider(
+
+	p = obs_properties_add_float_slider(
 		tilt_shift_bounds, "tilt_shift_angle",
 		obs_module_text("CompositeBlurFilter.TiltShift.Angle"), -180.0,
 		181.0, 0.1);
+	obs_property_float_set_suffix(p, "deg");
+
 	obs_properties_add_float_slider(
 		tilt_shift_bounds, "tilt_shift_width",
 		obs_module_text("CompositeBlurFilter.TiltShift.Width"), 0.0,
@@ -1288,7 +1324,7 @@ static obs_properties_t *composite_blur_properties(void *data)
 		obs_module_text("CompositeBlurFilter.TiltShift"),
 		OBS_GROUP_NORMAL, tilt_shift_bounds);
 
-	obs_property_t *p = obs_properties_add_list(
+	p = obs_properties_add_list(
 		props, "background",
 		obs_module_text("CompositeBlurFilter.Background"),
 		OBS_COMBO_TYPE_EDITABLE, OBS_COMBO_FORMAT_STRING);
@@ -1686,6 +1722,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 	case ALGO_GAUSSIAN:
 		setting_visibility("radius", true, props);
 		setting_visibility("temporal_current_weight", false, props);
+		setting_visibility("temporal_clear_threshold", false, props);
 		setting_visibility("passes", false, props);
 		setting_visibility("kawase_passes", false, props);
 		setting_visibility("blur_type", true, props);
@@ -1706,6 +1743,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 	case ALGO_BOX:
 		setting_visibility("radius", true, props);
 		setting_visibility("temporal_current_weight", false, props);
+		setting_visibility("temporal_clear_threshold", false, props);
 		setting_visibility("kawase_passes", false, props);
 		setting_visibility("passes", true, props);
 		setting_visibility("blur_type", true, props);
@@ -1726,6 +1764,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 	case ALGO_DUAL_KAWASE:
 		setting_visibility("radius", false, props);
 		setting_visibility("temporal_current_weight", false, props);
+		setting_visibility("temporal_clear_threshold", false, props);
 		setting_visibility("passes", false, props);
 		setting_visibility("kawase_passes", true, props);
 		setting_visibility("blur_type", false, props);
@@ -1744,6 +1783,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 	case ALGO_PIXELATE:
 		setting_visibility("radius", true, props);
 		setting_visibility("temporal_current_weight", false, props);
+		setting_visibility("temporal_clear_threshold", false, props);
 		setting_visibility("passes", false, props);
 		setting_visibility("kawase_passes", false, props);
 		setting_visibility("blur_type", false, props);
@@ -1767,6 +1807,7 @@ static bool setting_blur_algorithm_modified(void *data, obs_properties_t *props,
 	case ALGO_TEMPORAL:
 		setting_visibility("radius", false, props);
 		setting_visibility("temporal_current_weight", true, props);
+		setting_visibility("temporal_clear_threshold", true, props);
 		setting_visibility("kawase_passes", false, props);
 		setting_visibility("passes", false, props);
 		setting_visibility("blur_type", false, props);
@@ -1967,9 +2008,15 @@ static void composite_blur_video_tick(void *data, float seconds)
 				obs_data_set_double(settings, "pixelate_origin_x", (double)width / 2.0);
 				obs_data_set_double(settings, "pixelate_origin_y",
 						(double)height / 2.0);
+				obs_data_set_double(settings, "center_x", (double)width / 2.0);
+				obs_data_set_double(settings, "center_y", (double)height / 2.0);
+				filter->center_x = (float)width / 2.0f;
+				filter->center_y = (float)height / 2.0f;
+
 				filter->pixelate_tessel_center.x = (float)width / 2.0f;
 				filter->pixelate_tessel_center.y = (float)height / 2.0f;
 		}
+
 		obs_data_release(settings);
 	}
 

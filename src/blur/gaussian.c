@@ -423,6 +423,10 @@ static void gaussian_zoom_blur(composite_blur_filter_data_t *data)
 		gs_effect_set_vec2(data->param_radial_center, &radial_center);
 	}
 
+	if (data->param_inactive_radius) {
+		gs_effect_set_float(data->param_inactive_radius, data->inactive_radius);
+	}
+
 	struct vec2 uv_size;
 	uv_size.x = (float)data->width;
 	uv_size.y = (float)data->height;
@@ -788,6 +792,8 @@ static void load_radial_gaussian_effect(composite_blur_filter_data_t *filter)
 				filter->param_kernel_texture = param;
 			} else if (strcmp(info.name, "radial_center") == 0) {
 				filter->param_radial_center = param;
+			} else if (strcmp(info.name, "inactive_radius") == 0) {
+				filter->param_inactive_radius = param;
 			}
 		}
 	}

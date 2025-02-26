@@ -36,6 +36,10 @@ static void temporal_blur(composite_blur_filter_data_t* data)
 		gs_effect_set_float(data->param_temporal_current_weight, data->temporal_current_weight);
 	}
 
+	if (data->param_temporal_clear_threshold) {
+		gs_effect_set_float(data->param_temporal_clear_threshold, data->temporal_clear_threshold);
+	}
+
 	gs_texture_t* prior_texture;
 
 	if (!data->temporal_prior_stored) {
@@ -95,6 +99,8 @@ static void load_temporal_effect(composite_blur_filter_data_t* filter)
 				filter->param_temporal_prior_image = param;
 			} else if (strcmp(info.name, "current_weight") == 0) {
 				filter->param_temporal_current_weight = param;
+			} else if (strcmp(info.name, "clear_threshold") == 0) {
+				filter->param_temporal_clear_threshold = param;
 			}
 		}
 	}

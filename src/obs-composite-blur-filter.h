@@ -169,10 +169,11 @@ struct composite_blur_filter_data {
 	gs_eparam_t *param_radius;
 	float radius;
 	float radius_last;
+	float inactive_radius;
 	gs_eparam_t *param_texel_step;
 	struct vec2 texel_step;
 
-	// Gaussuan Blur
+	// Gaussian Blur
 	gs_eparam_t *param_kernel_size;
 	size_t kernel_size;
 	gs_eparam_t *param_offset;
@@ -191,6 +192,7 @@ struct composite_blur_filter_data {
 	int vector_blur_type;
 	float last_vector_blur_amount;
 	obs_weak_source_t* vector_blur_source;
+	gs_eparam_t* param_inactive_radius;
 
 	// Box Blur
 	int passes;
@@ -242,7 +244,9 @@ struct composite_blur_filter_data {
 	gs_eparam_t* param_temporal_prior_image;
 	// gs_texture_t* prior_image_texture;
 	gs_eparam_t* param_temporal_current_weight;
+	gs_eparam_t* param_temporal_clear_threshold;
 	float temporal_current_weight;
+	float temporal_clear_threshold;
 	bool temporal_prior_stored;
 
 	// Compositing
