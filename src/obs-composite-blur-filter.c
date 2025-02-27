@@ -408,6 +408,10 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		break;
 	}
 
+	if (filter->mask_source_source) {
+		obs_weak_source_release(filter->mask_source_source);
+	}
+
 	const char *mask_source_name =
 		obs_data_get_string(settings, "effect_mask_source_source");
 	obs_source_t *mask_source =
@@ -415,7 +419,6 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 			? obs_get_source_by_name(mask_source_name)
 			: NULL;
 	if (mask_source) {
-		obs_weak_source_release(filter->mask_source_source);
 		filter->mask_source_source =
 			obs_source_get_weak_source(mask_source);
 		obs_source_release(mask_source);
@@ -517,8 +520,10 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 				       ? obs_get_source_by_name(source_name)
 				       : NULL;
 
-	if (source) {
+	if (filter->background) {
 		obs_weak_source_release(filter->background);
+	}
+	if (source) {
 		filter->background = obs_source_get_weak_source(source);
 		obs_source_release(source);
 	} else {
