@@ -44,8 +44,6 @@ static void composite_blur_defaults(obs_data_t *settings)
 		settings, "effect_mask_source_filter_multiplier", 1.0);
 	obs_data_set_default_double(settings, "pixelate_origin_x", -1.e9);
 	obs_data_set_default_double(settings, "pixelate_origin_y", -1.e9);
-	obs_data_set_default_double(settings, "", -1.e9);
-	obs_data_set_default_double(settings, "", -1.e9);
 	obs_data_set_default_double(settings, "pixelate_animation_speed", 50.0);
 	obs_data_set_default_double(settings, "effect_mask_circle_center_x",
 				    50.0);
@@ -336,11 +334,9 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 	filter->pixelate_smoothing_pct =
 		(float)obs_data_get_double(settings, "pixelate_smoothing_pct");
 
-	filter->pixelate_tessel_center.x =
-		(float)obs_data_get_double(settings, "pixelate_origin_x");
 
-	filter->pixelate_tessel_center.y =
-		(float)obs_data_get_double(settings, "pixelate_origin_y");
+	filter->pixelate_tessel_center.x = (float)obs_data_get_double(settings, "pixelate_origin_x");
+	filter->pixelate_tessel_center.y = (float)obs_data_get_double(settings, "pixelate_origin_y");
 
 	filter->pixelate_animate = obs_data_get_bool(settings, "pixelate_animate");
 	filter->pixelate_animation_speed = (float)obs_data_get_double(settings, "pixelate_animation_speed")/100.0f;
@@ -2007,23 +2003,23 @@ static void composite_blur_video_tick(void *data, float seconds)
 		filter->height = (uint32_t)obs_source_get_base_height(target);
 		filter->uv_size.x = (float)filter->width;
 		filter->uv_size.y = (float)filter->height;
-		obs_data_t *settings = obs_source_get_settings(filter->context);
-		if (filter->width > 0 &&
-			(float)obs_data_get_double(settings, "pixelate_origin_x") < -1.e8) {
-				obs_data_set_double(settings, "pixelate_origin_x", (double)width / 2.0);
-				obs_data_set_double(settings, "pixelate_origin_y",
-						(double)height / 2.0);
-				obs_data_set_double(settings, "center_x", (double)width / 2.0);
-				obs_data_set_double(settings, "center_y", (double)height / 2.0);
-				filter->center_x = (float)width / 2.0f;
-				filter->center_y = (float)height / 2.0f;
-
-				filter->pixelate_tessel_center.x = (float)width / 2.0f;
-				filter->pixelate_tessel_center.y = (float)height / 2.0f;
-		}
-
-		obs_data_release(settings);
 	}
+	obs_data_t* settings = obs_source_get_settings(filter->context);
+	if (filter->width > 0 &&
+		(float)obs_data_get_double(settings, "pixelate_origin_x") < -1.e8) {
+		obs_data_set_double(settings, "pixelate_origin_x", (double)width / 2.0);
+		obs_data_set_double(settings, "pixelate_origin_y",
+			(double)height / 2.0);
+		obs_data_set_double(settings, "center_x", (double)width / 2.0);
+		obs_data_set_double(settings, "center_y", (double)height / 2.0);
+		filter->center_x = (float)width / 2.0f;
+		filter->center_y = (float)height / 2.0f;
+
+		filter->pixelate_tessel_center.x = (float)width / 2.0f;
+		filter->pixelate_tessel_center.y = (float)height / 2.0f;
+	}
+
+	obs_data_release(settings);
 
 	filter->rendered = false;
 }
