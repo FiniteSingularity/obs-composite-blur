@@ -71,6 +71,14 @@ Arch Linux users can install obs-composite-blur from the [AUR](https://aur.archl
 paru -S obs-composite-blur
 ```
 
+### From Flathub
+
+Linux users who have installed OBS via flatpak/flathub can install Composite Blur via [Flathub](https://flathub.org/apps/com.obsproject.Studio.Plugin.CompositeBlur)
+
+```sh
+flatpak install flathub com.obsproject.Studio.Plugin.CompositeBlur
+```
+
 ## Blur Algorithms
 
 Composite Blur provides several different algorithms to blur your sources. The blur algorithms are written with performance in mind using techniques like linear sampling and GPU texture interpolation to stretch what your GPU can do. Additonally, the algorithms have been written with finely adjustable blur amounts, that allow for smooth transitions and animations when using other plugins like Move Transition.
