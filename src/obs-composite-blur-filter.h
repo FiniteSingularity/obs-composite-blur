@@ -370,3 +370,6 @@ static bool setting_effect_mask_source_filter_modified(obs_properties_t *props,
 						       obs_property_t *p,
 						       obs_data_t *settings);
 extern void get_background(composite_blur_filter_data_t *data);
+
+extern float (*move_get_transition_filter)(obs_source_t *filter_from,
+					   obs_source_t **filter_to);

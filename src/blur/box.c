@@ -59,6 +59,34 @@ void load_effect_box(composite_blur_filter_data_t *filter)
 	}
 }
 
+static float get_box_blur_radius(composite_blur_filter_data_t *data)
+{
+	float radius = data->radius;
+	float f = 0.0f;
+	obs_source_t *filter_to = NULL;
+	if (move_get_transition_filter)
+		f = move_get_transition_filter(data->context, &filter_to);
+	if (f <= 0.0f)
+		return radius;
+	if (filter_to) {
+		composite_blur_filter_data_t *data_to =
+			obs_obj_get_data(filter_to);
+		if (data_to &&
+		    data_to->blur_algorithm == data->blur_algorithm &&
+		    data_to->blur_type == data->blur_type) {
+			radius = radius * (1.0f - f) + data_to->radius * f;
+		} else if (f > 0.5f) {
+			radius *= 1.0f - (f - 0.5f) * 2.0f;
+		} else {
+			radius *= 1.0f - f * 2.0f;
+		}
+	} else {
+		radius *= 1.0f - f;
+	}
+
+	return radius;
+}
+
 /*
  *  Performs an area blur using the box kernel.  Blur is
  *  equal in both x and y directions.
@@ -72,7 +100,9 @@ static void box_area_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
-	if (data->radius < MIN_BOX_BLUR_RADIUS) {
+	float radius = get_box_blur_radius(data);
+
+	if (radius < MIN_BOX_BLUR_RADIUS) {
 		data->output_texrender =
 			create_or_reset_texrender(data->output_texrender);
 		texrender_set_texture(texture, data->output_texrender);
@@ -90,7 +120,7 @@ static void box_area_blur(composite_blur_filter_data_t *data)
 		gs_effect_set_texture(image, texture);
 
 		if (data->param_radius) {
-			gs_effect_set_float(data->param_radius, data->radius);
+			gs_effect_set_float(data->param_radius, radius);
 		}
 
 		struct vec2 texel_step;
@@ -155,7 +185,9 @@ static void box_directional_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
-	if (data->radius < MIN_BOX_BLUR_RADIUS) {
+	float radius = get_box_blur_radius(data);
+
+	if (radius < MIN_BOX_BLUR_RADIUS) {
 		data->output_texrender =
 			create_or_reset_texrender(data->output_texrender);
 		texrender_set_texture(texture, data->output_texrender);
@@ -175,7 +207,7 @@ static void box_directional_blur(composite_blur_filter_data_t *data)
 		gs_effect_set_texture(image, texture);
 
 		if (data->param_radius) {
-			gs_effect_set_float(data->param_radius, data->radius);
+			gs_effect_set_float(data->param_radius, radius);
 		}
 
 		struct vec2 texel_step;
@@ -220,7 +252,9 @@ static void box_zoom_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
-	if (data->radius < MIN_BOX_BLUR_RADIUS) {
+	float radius = get_box_blur_radius(data);
+
+	if (radius < MIN_BOX_BLUR_RADIUS) {
 		data->output_texrender =
 			create_or_reset_texrender(data->output_texrender);
 		texrender_set_texture(texture, data->output_texrender);
@@ -240,7 +274,7 @@ static void box_zoom_blur(composite_blur_filter_data_t *data)
 		gs_effect_set_texture(image, texture);
 
 		if (data->param_radius) {
-			gs_effect_set_float(data->param_radius, data->radius);
+			gs_effect_set_float(data->param_radius, radius);
 		}
 
 		struct vec2 radial_center;
@@ -290,7 +324,9 @@ static void box_tilt_shift_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
-	if (data->radius < MIN_BOX_BLUR_RADIUS) {
+	float radius = get_box_blur_radius(data);
+
+	if (radius < MIN_BOX_BLUR_RADIUS) {
 		data->output_texrender =
 			create_or_reset_texrender(data->output_texrender);
 		texrender_set_texture(texture, data->output_texrender);
@@ -308,8 +344,7 @@ static void box_tilt_shift_blur(composite_blur_filter_data_t *data)
 		gs_effect_set_texture(image, texture);
 
 		if (data->param_radius) {
-			gs_effect_set_float(data->param_radius,
-					    (float)data->radius);
+			gs_effect_set_float(data->param_radius, radius);
 		}
 
 		const float focus_center =
