@@ -20,9 +20,10 @@ void render_video_dual_kawase(composite_blur_filter_data_t *data)
 	dual_kawase_blur(data);
 }
 
-void render_video_dual_kawase_io(composite_blur_filter_data_t* data, gs_texrender_t* input, gs_texrender_t* output)
+void render_video_dual_kawase_io(composite_blur_filter_data_t *data,
+				 gs_texrender_t *input, gs_texrender_t *output)
 {
-	gs_texrender_t* tmp = data->input_texrender;
+	gs_texrender_t *tmp = data->input_texrender;
 	data->input_texrender = input;
 	input = tmp;
 
@@ -40,7 +41,6 @@ void render_video_dual_kawase_io(composite_blur_filter_data_t* data, gs_texrende
 	data->output_texrender = output;
 	output = tmp;
 }
-
 
 void load_effect_dual_kawase(composite_blur_filter_data_t *filter)
 {
@@ -152,7 +152,32 @@ gs_texture_t *mix_textures(composite_blur_filter_data_t *data,
 static void dual_kawase_blur(composite_blur_filter_data_t *data)
 {
 	gs_texture_t *texture = gs_texrender_get_texture(data->input_texrender);
-	if (data->kawase_passes <= 0.01f) {
+	float kawase_passes = data->kawase_passes;
+
+	float f = 0.0f;
+	obs_source_t *filter_to = NULL;
+	if (move_get_transition_filter)
+		f = move_get_transition_filter(data->context, &filter_to);
+	if (f > 0.0f) {
+		if (filter_to) {
+			composite_blur_filter_data_t *data_to =
+				obs_obj_get_data(filter_to);
+			if (data_to &&
+			    data_to->blur_algorithm == data->blur_algorithm) {
+				kawase_passes =
+					data->kawase_passes * (1.0f - f) +
+					data_to->kawase_passes * f;
+			} else if (f > 0.5f) {
+				kawase_passes *= 1.0f - (f - 0.5f) * 2.0f;
+			} else {
+				kawase_passes *= 1.0f - f * 2.0f;
+			}
+		} else {
+			kawase_passes *= 1.0f - f;
+		}
+	}
+
+	if (kawase_passes <= 0.01f) {
 		data->output_texrender =
 			create_or_reset_texrender(data->output_texrender);
 		texrender_set_texture(texture, data->output_texrender);
@@ -171,18 +196,19 @@ static void dual_kawase_blur(composite_blur_filter_data_t *data)
 	// TODO: Should we convert Kawase to be 1 based instead of 2.
 	int last_pass = 0;
 	// Down Sampling Loop
-	for (int i = 2; i <= data->kawase_passes; i *= 2) {
+	for (int i = 2; i <= kawase_passes; i *= 2) {
 		texture = down_sample(data, texture, i, 1.0);
 		last_pass = i;
 	}
 
 	if (last_pass == 0) {
-		gs_texrender_t* tmp = data->render;
+		gs_texrender_t *tmp = data->render;
 		data->render = data->input_texrender;
 		data->input_texrender = tmp;
 	}
 
-	float residual = last_pass > 0 ? data->kawase_passes - (float)last_pass : data->kawase_passes;
+	float residual = last_pass > 0 ? kawase_passes - (float)last_pass
+				       : kawase_passes;
 	last_pass = last_pass > 0 ? last_pass : 1;
 	if (residual > 0.0f) {
 		int next_pass = last_pass * 2;

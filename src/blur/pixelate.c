@@ -53,10 +53,35 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 {
 	gs_effect_t *effect = data->pixelate_effect;
 
-	const float radius = (float)fmax((float)data->radius, 1.0f);
+	float radius = (float)fmax((float)data->radius, 1.0f);
+	float f = 0.0f;
+	obs_source_t *filter_to = NULL;
+	if (move_get_transition_filter)
+		f = move_get_transition_filter(data->context, &filter_to);
+	if (f > 0.0f) {
+		if (filter_to) {
+			composite_blur_filter_data_t *data_to =
+				obs_obj_get_data(filter_to);
+			if (data_to &&
+			    data_to->blur_algorithm == data->blur_algorithm) {
+				radius = radius * (1.0f - f) +
+					 (float)fmax((float)data_to->radius,
+						      1.0f) *
+						 f;
+			} else if (f > 0.5f) {
+				radius = (radius - 1.0f) *
+						 (1.0f - (f - 0.5f) * 2.0f) +
+					 1.0f;
+			} else {
+				radius = (radius - 1.0f) * (1.0f - f * 2.0f) +
+					 1.0f;
+			}
+		} else {
+			radius = (radius - 1.0f) * (1.0f - f) + 1.0f;
+		}
+	}
 
-	data->kawase_passes =
-		data->pixelate_smoothing_pct / 100.0f * radius;
+	data->kawase_passes = data->pixelate_smoothing_pct / 100.0f * radius;
 	render_video_dual_kawase(data);
 	data->pixelate_texrender =
 		create_or_reset_texrender(data->pixelate_texrender);
@@ -71,7 +96,7 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 		return;
 	}
 
-	if (data->radius < MIN_PIXELATE_BLUR_SIZE) {
+	if (radius < MIN_PIXELATE_BLUR_SIZE) {
 		data->output_texrender =
 			create_or_reset_texrender(data->output_texrender);
 		texrender_set_texture(texture, data->output_texrender);

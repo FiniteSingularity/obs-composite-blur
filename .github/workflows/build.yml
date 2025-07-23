@@ -83,7 +83,7 @@ jobs:
           }
           print '::endgroup::'
 
-          print "ccacheDate=$(date +"%Y-%m-%d")" >> $GITHUB_OUTPUT
+          print "commitHash=${"$(git rev-parse HEAD)"[0,9]}" >> $GITHUB_OUTPUT
           print "commitHash=${"$(git rev-parse HEAD)"[0,9]}" >> $GITHUB_OUTPUT
 
       - name: Restore Compilation Cache
@@ -175,7 +175,7 @@ jobs:
         shell: bash
         run: |
           mkdir ./build
-          cmake -S . -B "./build" -G Ninja -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DLINUX_PORTABLE=OFF -DENABLE_AJA=OFF -DENABLE_NEW_MPEGTS_OUTPUT=OFF -DBUILD_CAPTIONS=OFF -DWITH_RTMPS=OFF -DBUILD_BROWSER=OFF -DBUILD_VIRTUALCAM=OFF -DBUILD_VST=OFF -DENABLE_PIPEWIRE=OFF -DENABLE_SCRIPTING=OFF
+          cmake -S . -B "./build" -G Ninja -DCMAKE_BUILD_TYPE="RelWithDebInfo" -DLINUX_PORTABLE=OFF -DENABLE_AJA=OFF -DENABLE_NEW_MPEGTS_OUTPUT=OFF -DBUILD_CAPTIONS=OFF -DWITH_RTMPS=OFF -DBUILD_BROWSER=OFF -DBUILD_VIRTUALCAM=OFF -DBUILD_VST=OFF -DENABLE_PIPEWIRE=OFF -DENABLE_SCRIPTING=OFF -DENABLE_WEBSOCKET=OFF
       - name: "Build"
         shell: bash
         run: |
@@ -199,7 +199,7 @@ jobs:
     name: "Windows Build"
     runs-on: [windows-latest]
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         target: [x64, x86]
         include:
@@ -216,7 +216,7 @@ jobs:
       WINDOWS_DEPS_VERSION: "2022-08-02"
     steps:
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1.1.3
+        uses: microsoft/setup-msbuild@v2
       - name: Checkout obs
         uses: actions/checkout@v4.1.1
         with:
