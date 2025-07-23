@@ -74,6 +74,8 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	composite_blur_filter_data_t *filter =
 		bzalloc(sizeof(composite_blur_filter_data_t));
 	dstr_init_copy(&filter->filter_name, "");
+	dstr_init_copy(&filter->mask_source_name, "");
+	dstr_init_copy(&filter->background_source_name, "");
 
 	filter->context = source;
 	signal_handler_t *sh = obs_source_get_signal_handler(filter->context);
@@ -102,6 +104,8 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->pixelate_type_last = -1;
 
 	filter->temporal_prior_stored = false;
+
+	filter->has_background_source = false;
 
 	// Params
 	filter->param_uv_size = NULL;
@@ -187,6 +191,9 @@ static void composite_blur_destroy(void *data)
 	signal_handler_disconnect(sh, "rename", composite_blur_rename, filter);
 
 	dstr_free(&filter->filter_name);
+	dstr_free(&filter->mask_source_name);
+	dstr_free(&filter->background_source_name);
+
 	obs_enter_graphics();
 	if (filter->effect) {
 		gs_effect_destroy(filter->effect);
@@ -410,10 +417,20 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 
 	const char *mask_source_name =
 		obs_data_get_string(settings, "effect_mask_source_source");
+
+	filter->has_mask_source = mask_source_name && strlen(mask_source_name);
+
+	if (filter->has_mask_source) {
+		dstr_copy(&filter->mask_source_name, mask_source_name);
+	} else {
+		dstr_copy(&filter->mask_source_name, "");
+	}
+
 	obs_source_t *mask_source =
-		(mask_source_name && strlen(mask_source_name))
+			filter->has_mask_source
 			? obs_get_source_by_name(mask_source_name)
 			: NULL;
+
 	if (mask_source) {
 		filter->mask_source_source =
 			obs_source_get_weak_source(mask_source);
@@ -512,9 +529,18 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 
 
 	const char *source_name = obs_data_get_string(settings, "background");
-	obs_source_t *source = (source_name && strlen(source_name))
+
+	filter->has_background_source = (source_name && strlen(source_name));
+
+	obs_source_t *source = filter->has_background_source
 				       ? obs_get_source_by_name(source_name)
 				       : NULL;
+
+	if (filter->has_background_source) {
+		dstr_copy(&filter->background_source_name, source_name);
+	} else {
+		dstr_copy(&filter->background_source_name, "");
+	}
 
 	if (filter->background) {
 		obs_weak_source_release(filter->background);
@@ -1968,6 +1994,39 @@ static void composite_blur_video_tick(void *data, float seconds)
 	if (!target) {
 		return;
 	}
+
+	if (filter->has_mask_source && !filter->mask_source_source) {
+		obs_source_t* mask_source =
+			filter->has_mask_source
+			? obs_get_source_by_name(filter->mask_source_name.array)
+			: NULL;
+
+		if (mask_source) {
+			filter->mask_source_source =
+				obs_source_get_weak_source(mask_source);
+			obs_source_release(mask_source);
+		}
+		else {
+			filter->mask_source_source = NULL;
+		}
+	}
+
+	if (filter->has_background_source && !filter->background) {
+		obs_source_t* background_source =
+			filter->has_background_source
+			? obs_get_source_by_name(filter->background_source_name.array)
+			: NULL;
+
+		if (background_source) {
+			filter->background =
+				obs_source_get_weak_source(background_source);
+			obs_source_release(background_source);
+		}
+		else {
+			filter->background = NULL;
+		}
+	}
+
 	if (filter->hotkey == OBS_INVALID_HOTKEY_PAIR_ID) {
 		obs_source_t *parent = obs_filter_get_parent(filter->context);
 		if (parent) {

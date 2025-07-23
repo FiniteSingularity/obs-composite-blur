@@ -252,6 +252,8 @@ struct composite_blur_filter_data {
 	// Compositing
 	gs_eparam_t *param_background;
 	obs_weak_source_t *background;
+	struct dstr background_source_name;
+	bool has_background_source;
 
 	// Mask
 	int mask_type;
@@ -270,6 +272,8 @@ struct composite_blur_filter_data {
 	float mask_crop_feathering;
 	gs_eparam_t *param_mask_crop_invert;
 	bool mask_crop_invert;
+	bool has_mask_source;
+	struct dstr mask_source_name;
 	int mask_source_filter_type;
 	float mask_source_filter_red;
 	float mask_source_filter_green;
