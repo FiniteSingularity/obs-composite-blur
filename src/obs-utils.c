@@ -121,7 +121,7 @@ char *load_shader_from_file(const char *file_name)
 		line_i++;
 		if (strncmp(line, "#include", 8) == 0) {
 			// Open the included file, place contents here.
-			char *pos = strrchr(file_name, '/');
+			const char *pos = strrchr(file_name, '/');
 			const size_t length = pos - file_name + 1;
 			struct dstr include_path = {0};
 			dstr_ncopy(&include_path, file_name, length);
