@@ -53,19 +53,9 @@ float2 sobel_gradient(float2 coord)
 	float bm = SAMPLE_FN(image.Sample(textureSampler, (coord + float2(0.0, 1.0)) / uv_size));
 	float br = SAMPLE_FN(image.Sample(textureSampler, (coord + float2(1.0, 1.0)) / uv_size));
 
-	float3x3 A =
-	{
-		tl, tm, tr,
-		ml, mm, mr,
-		bl, bm, br
-	};
+	float Gx = tl + 2.0 * tm + tr - bl - 2.0 * bm - br;
+	float Gy = tl + 2.0 * ml + bl - tr - 2.0 * mr - br;
 
-	float3 b1 = { 1.0, 0, -1.0 };
-	float3 b2 = { 1.0, 2.0, 1.0 };
-
-	float Gx = mul(mul(b1, A), b2);
-	float Gy = mul(mul(b2, A), b1);
-	
 	return float2(Gx, Gy);
 }
 

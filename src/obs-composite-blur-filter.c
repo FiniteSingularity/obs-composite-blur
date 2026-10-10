@@ -249,7 +249,7 @@ static void composite_blur_destroy(void *data)
 		gs_texture_destroy(filter->kernel_texture);
 	}
 	if (filter->mask_image) {
-		gs_image_file_free(filter->mask_image);
+		composite_blur_image_free(filter->mask_image);
 		bfree(filter->mask_image);
 	}
 
@@ -443,16 +443,16 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		obs_data_get_string(settings, "effect_mask_source_file");
 
 	if (filter->mask_image == NULL) {
-		filter->mask_image = bzalloc(sizeof(gs_image_file_t));
+		filter->mask_image = bzalloc(sizeof(composite_blur_image_t));
 	} else {
 		obs_enter_graphics();
-		gs_image_file_free(filter->mask_image);
+		composite_blur_image_free(filter->mask_image);
 		obs_leave_graphics();
 	}
 	if (strlen(mask_image_file)) {
-		gs_image_file_init(filter->mask_image, mask_image_file);
+		composite_blur_image_init(filter->mask_image, mask_image_file);
 		obs_enter_graphics();
-		gs_image_file_init_texture(filter->mask_image);
+		composite_blur_image_init_texture(filter->mask_image);
 		obs_leave_graphics();
 	}
 	filter->mask_source_multiplier = (float)obs_data_get_double(

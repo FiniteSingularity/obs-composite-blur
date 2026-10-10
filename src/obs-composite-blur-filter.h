@@ -9,6 +9,23 @@
 
 #include <stdio.h>
 
+/* OBS 33 removed the legacy image-file API. Preserve older OBS builds. */
+#if LIBOBS_API_MAJOR_VER >= 33
+typedef gs_image_file_ex_t composite_blur_image_t;
+#define composite_blur_image_free gs_image_file_ex_free
+#define composite_blur_image_init_texture gs_image_file_ex_init_texture
+static inline void composite_blur_image_init(composite_blur_image_t *image,
+                                            const char *file)
+{
+	gs_image_file_ex_init(image, file, GS_IMAGE_ALPHA_STRAIGHT);
+}
+#else
+typedef gs_image_file_t composite_blur_image_t;
+#define composite_blur_image_free gs_image_file_free
+#define composite_blur_image_init_texture gs_image_file_init_texture
+#define composite_blur_image_init gs_image_file_init
+#endif
+
 #include "version.h"
 #include "obs-utils.h"
 
@@ -303,7 +320,7 @@ struct composite_blur_filter_data {
 	float mask_rect_corner_radius;
 	float mask_rect_feathering;
 	float mask_rect_inv;
-	gs_image_file_t *mask_image;
+	composite_blur_image_t *mask_image;
 
 	// Output Effect Parameters
 	gs_eparam_t *param_output_image;
