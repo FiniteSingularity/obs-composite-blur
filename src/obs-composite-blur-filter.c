@@ -450,7 +450,7 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		obs_data_get_string(settings, "effect_mask_source_file");
 
 	if (strcmp(mask_image_file, filter->mask_image_path) != 0) {
-		if (filter->mask_texture) {
+		if (filter->mask_image_texture) {
 			obs_enter_graphics();
 			gs_texture_destroy(filter->mask_image_texture);
 			filter->mask_image_texture = NULL;
