@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Overrides the stock WixUI InstallDirDlg wording so the legacy installer asks for the OBS Studio folder. -->
+<WixLocalization Culture="en-US" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="InstallDirDlgTitle" Value="{\WixUI_Font_Title}OBS Studio Folder" />
+  <String Id="InstallDirDlgDescription" Value="Select the OBS Studio folder to install [ProductName] into." />
+  <String Id="InstallDirDlgFolderLabel" Value="OBS Studio folder (contains the 'bin', 'data' and 'obs-plugins' folders):" />
+</WixLocalization>

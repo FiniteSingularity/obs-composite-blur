@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <?if $(sys.BUILDARCH) = "x64" ?>
+    <?define WIXUIARCH = "X64" ?>
+  <?elseif $(sys.BUILDARCH) = "arm64" ?>
+    <?define WIXUIARCH = "A64" ?>
+  <?else ?>
+    <?define WIXUIARCH = "X86" ?>
+  <?endif ?>
+
+  <Fragment>
+    <UI Id="WixUI_ObsScope">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+
+      <DialogRef Id="BrowseDlg" />
+      <DialogRef Id="DiskCostDlg" />
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+      <DialogRef Id="ObsScopeDlg" />
+
+      <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath_$(WIXUIARCH)" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH" />
+      <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4" Condition="NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;" />
+
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
+
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg" Condition="NOT Installed" />
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="Installed AND PATCH" />
+
+      <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
+      <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="ObsScopeDlg" Condition="LicenseAccepted = &quot;1&quot;" />
+
+      <Publish Dialog="ObsScopeDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" />
+      <!-- portable branch -->
+      <Publish Dialog="ObsScopeDlg" Control="Next" Event="SetTargetPath" Value="OBSROOT" Order="1" Condition="INSTALLSCOPE = &quot;portable&quot;" />
+      <Publish Dialog="ObsScopeDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath_$(WIXUIARCH)" Order="2" Condition="INSTALLSCOPE = &quot;portable&quot; AND NOT WIXUI_DONTVALIDATEPATH" />
+      <Publish Dialog="ObsScopeDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3" Condition="INSTALLSCOPE = &quot;portable&quot; AND NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;" />
+      <Publish Dialog="ObsScopeDlg" Control="Next" Event="DoAction" Value="SetPluginFolderPortable" Order="4" Condition="INSTALLSCOPE = &quot;portable&quot; AND (WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID=&quot;1&quot;)" />
+      <!-- global branch -->
+      <Publish Dialog="ObsScopeDlg" Control="Next" Event="DoAction" Value="SetPluginFolderGlobal" Order="5" Condition="INSTALLSCOPE &lt;&gt; &quot;portable&quot;" />
+      <!-- both -->
+      <Publish Dialog="ObsScopeDlg" Control="Next" Event="SetTargetPath" Value="PLUGINFOLDER" Order="6" Condition="INSTALLSCOPE &lt;&gt; &quot;portable&quot; OR WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID=&quot;1&quot;" />
+      <Publish Dialog="ObsScopeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="7" Condition="INSTALLSCOPE &lt;&gt; &quot;portable&quot; OR WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID=&quot;1&quot;" />
+      <Publish Dialog="ObsScopeDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="OBSROOT" Order="1" />
+      <Publish Dialog="ObsScopeDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2" />
+
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ObsScopeDlg" Order="1" Condition="NOT Installed" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2" Condition="Installed AND NOT PATCH" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2" Condition="Installed AND PATCH" />
+
+      <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg" />
+
+      <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg" />
+
+      <Property Id="ARPNOMODIFY" Value="1" />
+    </UI>
+
+    <UIRef Id="WixUI_Common" />
+  </Fragment>
+</Wix>
