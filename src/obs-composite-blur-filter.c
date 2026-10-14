@@ -151,7 +151,7 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	filter->param_temporal_current_weight = NULL;
 	filter->param_temporal_clear_threshold = NULL;
 
-	filter->mask_image = NULL;
+	filter->mask_image_texture = NULL;
 
 	filter->mask_crop_left = 0.0f;
 	filter->mask_crop_right = 0.0f;
