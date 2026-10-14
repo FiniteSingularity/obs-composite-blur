@@ -37,23 +37,24 @@ endif()
 target_sources(
   ${PROJECT_NAME}
   PRIVATE
-	src/obs-composite-blur-filter.c
-	src/obs-composite-blur-plugin.c
-	src/obs-composite-blur-filter.h
-	src/blur/gaussian-kernel.c
-	src/blur/gaussian-kernel.h
-	src/obs-utils.c
-	src/obs-utils.h
-	src/blur/gaussian.c
-	src/blur/gaussian.h
-	src/blur/box.c
-	src/blur/box.h
-	src/blur/pixelate.c
-	src/blur/pixelate.h
-	src/blur/dual_kawase.c
-	src/blur/dual_kawase.h
-	src/blur/temporal.c
-	src/blur/temporal.h
-	src/version.h)
+    src/obs-composite-blur-filter.c
+    src/obs-composite-blur-plugin.c
+    src/obs-composite-blur-filter.h
+    src/blur/gaussian-kernel.c
+    src/blur/gaussian-kernel.h
+    src/obs-utils.c
+    src/obs-utils.h
+    src/blur/gaussian.c
+    src/blur/gaussian.h
+    src/blur/box.c
+    src/blur/box.h
+    src/blur/pixelate.c
+    src/blur/pixelate.h
+    src/blur/dual_kawase.c
+    src/blur/dual_kawase.h
+    src/blur/temporal.c
+    src/blur/temporal.h
+    src/version.h
+)
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})

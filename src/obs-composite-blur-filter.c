@@ -66,7 +66,6 @@ static void composite_blur_defaults(obs_data_t *settings)
 	obs_data_set_default_string(settings, "vector_source", "");
 	obs_data_set_default_double(settings, "temporal_current_weight", 0.95);
 	obs_data_set_default_double(settings, "temporal_clear_threshold", 5.0);
-
 }
 
 static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
@@ -271,7 +270,7 @@ static void composite_blur_destroy(void *data)
 	da_free(filter->offset);
 	da_free(filter->kernel);
 
-	if(filter->mask_image_path) {
+	if (filter->mask_image_path) {
 		bfree(filter->mask_image_path);
 	}
 
@@ -336,9 +335,14 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		(int)obs_data_get_int(settings, "pixelate_type");
 
 	filter->temporal_current_weight =
-		1.0f - (float)obs_data_get_double(settings, "temporal_current_weight") * 0.94f;
+		1.0f - (float)obs_data_get_double(settings,
+						  "temporal_current_weight") *
+			       0.94f;
 
-	filter->temporal_clear_threshold = (float)obs_data_get_double(settings, "temporal_clear_threshold") / 100.0f;
+	filter->temporal_clear_threshold =
+		(float)obs_data_get_double(settings,
+					   "temporal_clear_threshold") /
+		100.0f;
 
 	if (filter->pixelate_type != filter->pixelate_type_last) {
 		filter->pixelate_type_last = filter->pixelate_type;
@@ -348,13 +352,19 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 	filter->pixelate_smoothing_pct =
 		(float)obs_data_get_double(settings, "pixelate_smoothing_pct");
 
+	filter->pixelate_tessel_center.x =
+		(float)obs_data_get_double(settings, "pixelate_origin_x");
+	filter->pixelate_tessel_center.y =
+		(float)obs_data_get_double(settings, "pixelate_origin_y");
 
-	filter->pixelate_tessel_center.x = (float)obs_data_get_double(settings, "pixelate_origin_x");
-	filter->pixelate_tessel_center.y = (float)obs_data_get_double(settings, "pixelate_origin_y");
-
-	filter->pixelate_animate = obs_data_get_bool(settings, "pixelate_animate");
-	filter->pixelate_animation_speed = (float)obs_data_get_double(settings, "pixelate_animation_speed")/100.0f;
-	filter->pixelate_animation_time = (float)obs_data_get_double(settings, "pixelate_time");
+	filter->pixelate_animate =
+		obs_data_get_bool(settings, "pixelate_animate");
+	filter->pixelate_animation_speed =
+		(float)obs_data_get_double(settings,
+					   "pixelate_animation_speed") /
+		100.0f;
+	filter->pixelate_animation_time =
+		(float)obs_data_get_double(settings, "pixelate_time");
 
 	const double theta =
 		M_PI *
@@ -434,7 +444,7 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 	}
 
 	obs_source_t *mask_source =
-			filter->has_mask_source
+		filter->has_mask_source
 			? obs_get_source_by_name(mask_source_name)
 			: NULL;
 
@@ -458,7 +468,8 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 		}
 		if (mask_image_file && strlen(mask_image_file)) {
 			obs_enter_graphics();
-			filter->mask_image_texture = gs_texture_create_from_file(mask_image_file);
+			filter->mask_image_texture =
+				gs_texture_create_from_file(mask_image_file);
 			// data->mask_texture_size.x = (float)gs_texture_get_width(data->mask_texture);
 			// data->mask_texture_size.y = (float)gs_texture_get_height(data->mask_texture);
 			obs_leave_graphics();
@@ -505,7 +516,8 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 
 	filter->center_x = (float)obs_data_get_double(settings, "center_x");
 	filter->center_y = (float)obs_data_get_double(settings, "center_y");
-	filter->inactive_radius = (float)obs_data_get_double(settings, "inactive_radius");
+	filter->inactive_radius =
+		(float)obs_data_get_double(settings, "inactive_radius");
 
 	filter->angle = (float)obs_data_get_double(settings, "angle");
 	filter->tilt_shift_center =
@@ -515,29 +527,31 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 	filter->tilt_shift_angle =
 		(float)obs_data_get_double(settings, "tilt_shift_angle");
 
-	filter->vector_blur_channel = (int)obs_data_get_int(settings, "vector_blur_channel");
-	filter->vector_blur_amount = (float)obs_data_get_double(settings, "vector_blur_amount");
-	filter->vector_blur_smoothing = (float)obs_data_get_double(settings, "vector_blur_smoothing");
+	filter->vector_blur_channel =
+		(int)obs_data_get_int(settings, "vector_blur_channel");
+	filter->vector_blur_amount =
+		(float)obs_data_get_double(settings, "vector_blur_amount");
+	filter->vector_blur_smoothing =
+		(float)obs_data_get_double(settings, "vector_blur_smoothing");
 
-	filter->vector_blur_type = (int)obs_data_get_int(settings, "vector_gradient_type");
+	filter->vector_blur_type =
+		(int)obs_data_get_int(settings, "vector_gradient_type");
 
-	const char* vector_source_name =
+	const char *vector_source_name =
 		obs_data_get_string(settings, "vector_source");
-	obs_source_t* vector_source =
+	obs_source_t *vector_source =
 		(vector_source_name && strlen(vector_source_name))
-		? obs_get_source_by_name(vector_source_name)
-		: NULL;
+			? obs_get_source_by_name(vector_source_name)
+			: NULL;
 	if (filter->vector_blur_source)
 		obs_weak_source_release(filter->vector_blur_source);
 	if (vector_source) {
 		filter->vector_blur_source =
 			obs_source_get_weak_source(vector_source);
 		obs_source_release(vector_source);
-	}
-	else {
+	} else {
 		filter->vector_blur_source = NULL;
 	}
-
 
 	const char *source_name = obs_data_get_string(settings, "background");
 
@@ -1170,63 +1184,64 @@ static obs_properties_t *composite_blur_properties(void *data)
 				  PIXELATE_TYPE_TRIAKIS);
 
 	obs_property_set_modified_callback(pixelate_types,
-		setting_pixelate_animate_modified);
+					   setting_pixelate_animate_modified);
 
-	obs_property_t* p = obs_properties_add_float_slider(
+	obs_property_t *p = obs_properties_add_float_slider(
 		props, "radius", obs_module_text("CompositeBlurFilter.Radius"),
 		0.0, 80.1, 0.1);
 	obs_property_float_set_suffix(p, "px");
 
-	obs_properties_t* vector_blur = obs_properties_create();
+	obs_properties_t *vector_blur = obs_properties_create();
 
-	obs_property_t* vector_source = obs_properties_add_list(
+	obs_property_t *vector_source = obs_properties_add_list(
 		vector_blur, "vector_source",
 		obs_module_text("CompositeBlurFilter.VectorBlur.Source"),
 		OBS_COMBO_TYPE_EDITABLE, OBS_COMBO_FORMAT_STRING);
 	obs_enum_sources(add_source_to_list, vector_source);
 	obs_enum_scenes(add_source_to_list, vector_source);
-	obs_property_list_insert_string(
-		vector_source, 0,
-		"",
-		"");
+	obs_property_list_insert_string(vector_source, 0, "", "");
 
-	obs_property_t* vector_channel = obs_properties_add_list(
+	obs_property_t *vector_channel = obs_properties_add_list(
 		vector_blur, "vector_blur_channel",
 		obs_module_text("CompositeBlurFilter.VectorBlur.Channel"),
 		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(vector_channel,
-		obs_module_text(GRADIENT_CHANNEL_RED_LABEL),
-		GRADIENT_CHANNEL_RED);
+				  obs_module_text(GRADIENT_CHANNEL_RED_LABEL),
+				  GRADIENT_CHANNEL_RED);
 	obs_property_list_add_int(vector_channel,
-		obs_module_text(GRADIENT_CHANNEL_GREEN_LABEL),
-		GRADIENT_CHANNEL_GREEN);
+				  obs_module_text(GRADIENT_CHANNEL_GREEN_LABEL),
+				  GRADIENT_CHANNEL_GREEN);
 	obs_property_list_add_int(vector_channel,
-		obs_module_text(GRADIENT_CHANNEL_BLUE_LABEL),
-		GRADIENT_CHANNEL_BLUE);
+				  obs_module_text(GRADIENT_CHANNEL_BLUE_LABEL),
+				  GRADIENT_CHANNEL_BLUE);
 	obs_property_list_add_int(vector_channel,
-		obs_module_text(GRADIENT_CHANNEL_ALPHA_LABEL),
-		GRADIENT_CHANNEL_ALPHA);
-	obs_property_list_add_int(vector_channel,
+				  obs_module_text(GRADIENT_CHANNEL_ALPHA_LABEL),
+				  GRADIENT_CHANNEL_ALPHA);
+	obs_property_list_add_int(
+		vector_channel,
 		obs_module_text(GRADIENT_CHANNEL_LUMINANCE_LABEL),
 		GRADIENT_CHANNEL_LUMINANCE);
-	obs_property_list_add_int(vector_channel,
+	obs_property_list_add_int(
+		vector_channel,
 		obs_module_text(GRADIENT_CHANNEL_SATURATION_LABEL),
 		GRADIENT_CHANNEL_SATURATION);
 
 	obs_property_set_modified_callback2(vector_channel,
-		vector_channel_modified, data);
+					    vector_channel_modified, data);
 
-	obs_property_t* vector_gradient_type = obs_properties_add_list(
+	obs_property_t *vector_gradient_type = obs_properties_add_list(
 		vector_blur, "vector_gradient_type",
 		obs_module_text("CompositeBlurFilter.VectorBlur.GradientType"),
 		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_property_list_add_int(vector_gradient_type,
-		obs_module_text(GRADIENT_TYPE_SOBEL_LABEL),
-		GRADIENT_TYPE_SOBEL);
-	obs_property_list_add_int(vector_gradient_type,
+				  obs_module_text(GRADIENT_TYPE_SOBEL_LABEL),
+				  GRADIENT_TYPE_SOBEL);
+	obs_property_list_add_int(
+		vector_gradient_type,
 		obs_module_text(GRADIENT_TYPE_CENTRAL_LIMIT_DIFF_LABEL),
 		GRADIENT_TYPE_CENTRAL_LIMIT_DIFF);
-	obs_property_list_add_int(vector_gradient_type,
+	obs_property_list_add_int(
+		vector_gradient_type,
 		obs_module_text(GRADIENT_TYPE_FORWARD_DIFF_LABEL),
 		GRADIENT_TYPE_FORWARD_DIFF);
 
@@ -1241,16 +1256,19 @@ static obs_properties_t *composite_blur_properties(void *data)
 		obs_module_text("CompositeBlurFilter.VectorBlur.Smoothing"),
 		0.0, 1000.0, 0.1);
 
-	obs_properties_add_group(props, "vector_group",
+	obs_properties_add_group(
+		props, "vector_group",
 		obs_module_text("CompositeBlurFilter.VectorBlur"),
 		OBS_GROUP_NORMAL, vector_blur);
 
 	obs_properties_add_float_slider(
-		props, "temporal_current_weight", obs_module_text("CompositeBlurFilter.Temporal.Amount"),
-		0.0, 1.0, 0.01);
+		props, "temporal_current_weight",
+		obs_module_text("CompositeBlurFilter.Temporal.Amount"), 0.0,
+		1.0, 0.01);
 
-	obs_property_t* clear_threshold = obs_properties_add_float_slider(
-		props, "temporal_clear_threshold", obs_module_text("CompositeBlurFilter.Temporal.ClearThreshold"),
+	obs_property_t *clear_threshold = obs_properties_add_float_slider(
+		props, "temporal_clear_threshold",
+		obs_module_text("CompositeBlurFilter.Temporal.ClearThreshold"),
 		0.0, 100.0, 0.1);
 
 	obs_property_float_set_suffix(clear_threshold, "%");
@@ -1281,24 +1299,21 @@ static obs_properties_t *composite_blur_properties(void *data)
 
 	obs_property_t *animate_p = obs_properties_add_bool(
 		props, "pixelate_animate",
-		obs_module_text("CompositeBlurFilter.Pixelate.Animate")
-	);
+		obs_module_text("CompositeBlurFilter.Pixelate.Animate"));
 
 	obs_property_set_modified_callback(animate_p,
-		setting_pixelate_animate_modified);
+					   setting_pixelate_animate_modified);
 
 	p = obs_properties_add_float(
 		props, "pixelate_time",
-		obs_module_text("CompositeBlurFilter.Pixelate.Time"),
-		0.0, 1000000.0, 0.01
-	);
+		obs_module_text("CompositeBlurFilter.Pixelate.Time"), 0.0,
+		1000000.0, 0.01);
 	obs_property_float_set_suffix(p, "s");
 
 	obs_properties_add_float_slider(
 		props, "pixelate_animation_speed",
 		obs_module_text("CompositeBlurFilter.Pixelate.AnimationSpeed"),
-		0.0, 1000.0, 0.1
-	);
+		0.0, 1000.0, 0.1);
 
 	obs_properties_add_int_slider(
 		props, "passes",
@@ -1331,8 +1346,8 @@ static obs_properties_t *composite_blur_properties(void *data)
 
 	p = obs_properties_add_float_slider(
 		center_coords, "inactive_radius",
-		obs_module_text("CompositeBlurFilter.Center.InactiveRadius"), 0.0,
-		2500.0, 1.0);
+		obs_module_text("CompositeBlurFilter.Center.InactiveRadius"),
+		0.0, 2500.0, 1.0);
 	obs_property_float_set_suffix(p, "px");
 
 	obs_properties_add_group(
@@ -1641,9 +1656,9 @@ static bool setting_effect_mask_source_filter_modified(obs_properties_t *props,
 	return true;
 }
 
-static bool setting_pixelate_animate_modified(obs_properties_t* props,
-	obs_property_t* p,
-	obs_data_t* settings)
+static bool setting_pixelate_animate_modified(obs_properties_t *props,
+					      obs_property_t *p,
+					      obs_data_t *settings)
 {
 	UNUSED_PARAMETER(p);
 	int pixelate_type = (int)obs_data_get_int(settings, "pixelate_type");
@@ -1651,8 +1666,7 @@ static bool setting_pixelate_animate_modified(obs_properties_t* props,
 		bool animate = obs_data_get_bool(settings, "pixelate_animate");
 		setting_visibility("pixelate_time", !animate, props);
 		setting_visibility("pixelate_animation_speed", animate, props);
-	}
-	else {
+	} else {
 		setting_visibility("pixelate_animate", false, props);
 		setting_visibility("pixelate_time", false, props);
 		setting_visibility("pixelate_animation_speed", false, props);
@@ -1867,7 +1881,7 @@ static bool setting_blur_types_modified(void *data, obs_properties_t *props,
 {
 	UNUSED_PARAMETER(p);
 	//UNUSED_PARAMETER(data);
-	composite_blur_filter_data_t* filter = data;
+	composite_blur_filter_data_t *filter = data;
 	int blur_type = (int)obs_data_get_int(settings, "blur_type");
 	if (blur_type == TYPE_AREA) {
 		return settings_blur_area(props, settings);
@@ -1948,9 +1962,10 @@ static bool settings_blur_tilt_shift(obs_properties_t *props)
 	return true;
 }
 
-static bool settings_blur_vector(obs_properties_t* props, composite_blur_filter_data_t* filter)
+static bool settings_blur_vector(obs_properties_t *props,
+				 composite_blur_filter_data_t *filter)
 {
-	setting_visibility("radius", false , props);
+	setting_visibility("radius", false, props);
 	setting_visibility("angle", false, props);
 	setting_visibility("center_coordinate", false, props);
 	setting_visibility("background", true, props);
@@ -1997,8 +2012,7 @@ static void composite_blur_video_tick(void *data, float seconds)
 	composite_blur_filter_data_t *filter = data;
 	if (filter->pixelate_animate) {
 		filter->time += seconds * filter->pixelate_animation_speed;
-	}
-	else {
+	} else {
 		filter->time = filter->pixelate_animation_time;
 	}
 	obs_source_t *target = obs_filter_get_target(filter->context);
@@ -2007,33 +2021,33 @@ static void composite_blur_video_tick(void *data, float seconds)
 	}
 
 	if (filter->has_mask_source && !filter->mask_source_source) {
-		obs_source_t* mask_source =
+		obs_source_t *mask_source =
 			filter->has_mask_source
-			? obs_get_source_by_name(filter->mask_source_name.array)
-			: NULL;
+				? obs_get_source_by_name(
+					  filter->mask_source_name.array)
+				: NULL;
 
 		if (mask_source) {
 			filter->mask_source_source =
 				obs_source_get_weak_source(mask_source);
 			obs_source_release(mask_source);
-		}
-		else {
+		} else {
 			filter->mask_source_source = NULL;
 		}
 	}
 
 	if (filter->has_background_source && !filter->background) {
-		obs_source_t* background_source =
+		obs_source_t *background_source =
 			filter->has_background_source
-			? obs_get_source_by_name(filter->background_source_name.array)
-			: NULL;
+				? obs_get_source_by_name(
+					  filter->background_source_name.array)
+				: NULL;
 
 		if (background_source) {
 			filter->background =
 				obs_source_get_weak_source(background_source);
 			obs_source_release(background_source);
-		}
-		else {
+		} else {
 			filter->background = NULL;
 		}
 	}
@@ -2068,18 +2082,19 @@ static void composite_blur_video_tick(void *data, float seconds)
 	}
 	const uint32_t width = (uint32_t)obs_source_get_base_width(target);
 	const uint32_t height = (uint32_t)obs_source_get_base_height(target);
-	if(filter->width != width || filter->height != height) {
+	if (filter->width != width || filter->height != height) {
 		filter->width = (uint32_t)obs_source_get_base_width(target);
 		filter->height = (uint32_t)obs_source_get_base_height(target);
 		filter->uv_size.x = (float)filter->width;
 		filter->uv_size.y = (float)filter->height;
 	}
-	obs_data_t* settings = obs_source_get_settings(filter->context);
+	obs_data_t *settings = obs_source_get_settings(filter->context);
 	if (filter->width > 0 &&
-		(float)obs_data_get_double(settings, "pixelate_origin_x") < -1.e8) {
-		obs_data_set_double(settings, "pixelate_origin_x", (double)width / 2.0);
+	    (float)obs_data_get_double(settings, "pixelate_origin_x") < -1.e8) {
+		obs_data_set_double(settings, "pixelate_origin_x",
+				    (double)width / 2.0);
 		obs_data_set_double(settings, "pixelate_origin_y",
-			(double)height / 2.0);
+				    (double)height / 2.0);
 		obs_data_set_double(settings, "center_x", (double)width / 2.0);
 		obs_data_set_double(settings, "center_y", (double)height / 2.0);
 		filter->center_x = (float)width / 2.0f;
@@ -2110,7 +2125,7 @@ static void composite_blur_reload_effect(composite_blur_filter_data_t *filter)
 		dual_kawase_setup_callbacks(filter);
 	} else if (filter->blur_algorithm == ALGO_TEMPORAL) {
 		temporal_setup_callbacks(filter);
-	}	
+	}
 
 	if (filter->load_effect) {
 		filter->load_effect(filter);
