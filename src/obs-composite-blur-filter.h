@@ -303,7 +303,9 @@ struct composite_blur_filter_data {
 	float mask_rect_corner_radius;
 	float mask_rect_feathering;
 	float mask_rect_inv;
-	gs_image_file_t *mask_image;
+
+	gs_texture_t *mask_image_texture;
+	char *mask_image_path;
 
 	// Output Effect Parameters
 	gs_eparam_t *param_output_image;

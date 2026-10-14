@@ -77,6 +77,9 @@ static void *composite_blur_create(obs_data_t *settings, obs_source_t *source)
 	dstr_init_copy(&filter->mask_source_name, "");
 	dstr_init_copy(&filter->background_source_name, "");
 
+	filter->mask_image_path = bzalloc(255 * sizeof(char));
+	strcpy(filter->mask_image_path, "");
+
 	filter->context = source;
 	signal_handler_t *sh = obs_source_get_signal_handler(filter->context);
 	signal_handler_connect_ref(sh, "rename", composite_blur_rename, filter);
@@ -248,9 +251,9 @@ static void composite_blur_destroy(void *data)
 	if (filter->kernel_texture) {
 		gs_texture_destroy(filter->kernel_texture);
 	}
-	if (filter->mask_image) {
-		gs_image_file_free(filter->mask_image);
-		bfree(filter->mask_image);
+
+	if (filter->mask_image_texture) {
+		gs_texture_destroy(filter->mask_image_texture);
 	}
 
 	if (filter->background) {
@@ -267,6 +270,10 @@ static void composite_blur_destroy(void *data)
 
 	da_free(filter->offset);
 	da_free(filter->kernel);
+
+	if(filter->mask_image_path) {
+		bfree(filter->mask_image_path);
+	}
 
 	obs_leave_graphics();
 	bfree(filter);
@@ -442,19 +449,23 @@ static void composite_blur_update(void *data, obs_data_t *settings)
 	const char *mask_image_file =
 		obs_data_get_string(settings, "effect_mask_source_file");
 
-	if (filter->mask_image == NULL) {
-		filter->mask_image = bzalloc(sizeof(gs_image_file_t));
-	} else {
-		obs_enter_graphics();
-		gs_image_file_free(filter->mask_image);
-		obs_leave_graphics();
+	if (strcmp(mask_image_file, filter->mask_image_path) != 0) {
+		if (filter->mask_texture) {
+			obs_enter_graphics();
+			gs_texture_destroy(filter->mask_image_texture);
+			filter->mask_image_texture = NULL;
+			obs_leave_graphics();
+		}
+		if (mask_image_file && strlen(mask_image_file)) {
+			obs_enter_graphics();
+			filter->mask_image_texture = gs_texture_create_from_file(mask_image_file);
+			// data->mask_texture_size.x = (float)gs_texture_get_width(data->mask_texture);
+			// data->mask_texture_size.y = (float)gs_texture_get_height(data->mask_texture);
+			obs_leave_graphics();
+		}
+		strcpy(filter->mask_image_path, mask_image_file);
 	}
-	if (strlen(mask_image_file)) {
-		gs_image_file_init(filter->mask_image, mask_image_file);
-		obs_enter_graphics();
-		gs_image_file_init_texture(filter->mask_image);
-		obs_leave_graphics();
-	}
+
 	filter->mask_source_multiplier = (float)obs_data_get_double(
 		settings, "effect_mask_source_filter_multiplier");
 
@@ -754,8 +765,8 @@ static void apply_effect_mask_source(composite_blur_filter_data_t *filter)
 		obs_source_release(source);
 		alpha_texture = gs_texrender_get_texture(source_render);
 	} else if (filter->mask_type == EFFECT_MASK_TYPE_IMAGE &&
-		   filter->mask_image) {
-		alpha_texture = filter->mask_image->texture;
+		   filter->mask_image_texture) {
+		alpha_texture = filter->mask_image_texture;
 	}
 
 	// Swap output with render
