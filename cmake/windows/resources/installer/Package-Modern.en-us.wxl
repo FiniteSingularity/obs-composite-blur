@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="en-US" xmlns="http://wixtoolset.org/schemas/v4/wxl">
   <String Id="WelcomeDlgTitle" Value="{\WixUI_Font_Title}Composite Blur for OBS 33+ Installer" />
-  <String Id="WelcomeDlgDescription" Value="This installer is for OBS Studio 33 and newer.&#13;&#10;&#13;&#10;Using OBS Studio 30, 31 or 32? Click Cancel and download the installer with &quot;legacy&quot; in its file name instead.&#13;&#10;&#13;&#10;Click Next to continue." />
+  <String Id="WelcomeDlgDescription" Value="This installer is for OBS Studio 33 and newer.&#13;&#10;&#13;&#10;Using OBS Studio 30, 31 or 32? Click Cancel and download the Composite Blur OBS 30-32 installer instead.&#13;&#10;&#13;&#10;Click Next to continue." />
 </WixLocalization>
