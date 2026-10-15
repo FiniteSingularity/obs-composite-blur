@@ -105,7 +105,7 @@ function Build-Installer {
         $Installers += @{
             Key = 'modern'
             Label = 'OBS 33+'
-            StagingDir = "${StagingRoot}\${ProductName}"
+            StagingDir = "${StagingRoot}\${ProductName}\${ProductName}"
             OutputName = "${ProductName}-${ProductVersion}-windows-${Target}"
             Sources = @(
                 "${SourceDir}\Package-Modern.wxs"

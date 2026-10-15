@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="en-US" xmlns="http://wixtoolset.org/schemas/v4/wxl">
   <String Id="WelcomeDlgTitle" Value="{\WixUI_Font_Title}Composite Blur for OBS 30-32 Installer" />
-  <String Id="WelcomeDlgDescription" Value="This installer is for OBS Studio 30, 31 and 32.&#13;&#10;&#13;&#10;Using OBS Studio 33 or newer? Click Cancel and download the installer without &quot;legacy&quot; in its file name instead.&#13;&#10;&#13;&#10;Click Next to continue." />
+  <String Id="WelcomeDlgDescription" Value="This installer is for OBS Studio 30, 31 and 32.&#13;&#10;&#13;&#10;Using OBS Studio 33 or newer? Click Cancel and download the Composite Blur OBS 33 installer instead.&#13;&#10;&#13;&#10;Click Next to continue." />
   <String Id="InstallDirDlgTitle" Value="{\WixUI_Font_Title}OBS Studio Folder" />
   <String Id="InstallDirDlgDescription" Value="Select the OBS Studio folder to install [ProductName] into." />
   <String Id="InstallDirDlgFolderLabel" Value="OBS Studio folder (contains the 'bin', 'data' and 'obs-plugins' folders):" />
