@@ -22,11 +22,7 @@ function(set_target_properties_plugin target)
 
   set_target_properties(${target} PROPERTIES VERSION 0 SOVERSION ${PLUGIN_VERSION})
 
-  install(
-    TARGETS ${target}
-    RUNTIME DESTINATION "${target}"
-    LIBRARY DESTINATION "${target}/${target}"
-  )
+  install(TARGETS ${target} RUNTIME DESTINATION "${target}" LIBRARY DESTINATION "${target}/${target}")
   install(
     TARGETS ${target}
     RUNTIME DESTINATION "${target}_legacy/${target}/bin/64bit"
@@ -41,14 +37,14 @@ function(set_target_properties_plugin target)
   install(
     FILES "$<TARGET_PDB_FILE:${target}>"
     CONFIGURATIONS RelWithDebInfo Debug Release
-    DESTINATION "${target}"
+    DESTINATION "${target}/${target}"
     OPTIONAL
   )
 
   install(
     FILES "$<TARGET_PDB_FILE:${target}>"
     CONFIGURATIONS RelWithDebInfo Debug Release
-    DESTINATION "${target}_legacy/bin/64bit"
+    DESTINATION "${target}_legacy/${target}/bin/64bit"
     OPTIONAL
   )
 
@@ -106,8 +102,16 @@ function(target_install_resources target)
     install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data/" DESTINATION "${target}/${target}/data" USE_SOURCE_PERMISSIONS)
     install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/manifest.json" DESTINATION "${target}/${target}/data" COMPONENT Runtime)
 
-    install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data/" DESTINATION "${target}_legacy/${target}/data" USE_SOURCE_PERMISSIONS)
-    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/manifest.json" DESTINATION "${target}_legacy/${target}/data" COMPONENT Runtime)
+    install(
+      DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data/"
+      DESTINATION "${target}_legacy/${target}/data"
+      USE_SOURCE_PERMISSIONS
+    )
+    install(
+      FILES "${CMAKE_CURRENT_SOURCE_DIR}/manifest.json"
+      DESTINATION "${target}_legacy/${target}/data"
+      COMPONENT Runtime
+    )
 
     install(
       DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data/"
