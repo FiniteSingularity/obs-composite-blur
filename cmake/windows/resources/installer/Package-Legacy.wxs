@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package
+    Name="$(var.ProductDisplayName) (Legacy)"
+    Manufacturer="$(var.ProductAuthor)"
+    Version="$(var.MsiVersion)"
+    UpgradeCode="548FBBAC-DB40-4214-A286-F371BE3B0A9F"
+    Language="1033"
+    Scope="perMachine"
+    InstallerVersion="500">
+
+    <SummaryInformation
+      Description="$(var.ProductDisplayName) $(var.ProductVersion) for OBS Studio 28 - 32 (legacy plugin layout)"
+      Manufacturer="$(var.ProductAuthor)" />
+
+    <MajorUpgrade
+      AllowSameVersionUpgrades="yes"
+      DowngradeErrorMessage="A newer version of $(var.ProductDisplayName) (Legacy) is already installed." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="ARPURLINFOABOUT" Value="$(var.ProductWebsite)" />
+    <Property Id="ARPHELPLINK" Value="$(var.ProductWebsite)" />
+
+    <Property Id="OBS_INSTALL_PATH_64">
+      <RegistrySearch Id="ObsInstallPath64" Root="HKLM" Key="SOFTWARE\OBS Studio" Type="raw" Bitness="always64" />
+    </Property>
+    <Property Id="OBS_INSTALL_PATH_32">
+      <RegistrySearch Id="ObsInstallPath32" Root="HKLM" Key="SOFTWARE\OBS Studio" Type="raw" Bitness="always32" />
+    </Property>
+    <Property Id="SAVED_INSTALLFOLDER">
+      <RegistrySearch Id="SavedInstallFolder" Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName) Legacy" Name="InstallFolder" Type="raw" Bitness="always64" />
+    </Property>
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="obs-studio" />
+    </StandardDirectory>
+
+    <CustomAction Id="SetInstallFolderFromSaved" Property="INSTALLFOLDER" Value="[SAVED_INSTALLFOLDER]" />
+    <CustomAction Id="SetInstallFolderFromRegistry64" Property="INSTALLFOLDER" Value="[OBS_INSTALL_PATH_64]" />
+    <CustomAction Id="SetInstallFolderFromRegistry32" Property="INSTALLFOLDER" Value="[OBS_INSTALL_PATH_32]" />
+
+    <InstallUISequence>
+      <Custom Action="SetInstallFolderFromSaved" After="AppSearch" Condition="NOT INSTALLFOLDER AND SAVED_INSTALLFOLDER" />
+      <Custom Action="SetInstallFolderFromRegistry64" After="SetInstallFolderFromSaved" Condition="NOT INSTALLFOLDER AND OBS_INSTALL_PATH_64" />
+      <Custom Action="SetInstallFolderFromRegistry32" After="SetInstallFolderFromRegistry64" Condition="NOT INSTALLFOLDER AND OBS_INSTALL_PATH_32" />
+    </InstallUISequence>
+
+    <InstallExecuteSequence>
+      <Custom Action="SetInstallFolderFromSaved" After="AppSearch" Condition="NOT INSTALLFOLDER AND SAVED_INSTALLFOLDER" />
+      <Custom Action="SetInstallFolderFromRegistry64" After="SetInstallFolderFromSaved" Condition="NOT INSTALLFOLDER AND OBS_INSTALL_PATH_64" />
+      <Custom Action="SetInstallFolderFromRegistry32" After="SetInstallFolderFromRegistry64" Condition="NOT INSTALLFOLDER AND OBS_INSTALL_PATH_32" />
+    </InstallExecuteSequence>
+
+    <Feature Id="Main" Title="$(var.ProductDisplayName) (Legacy)" Level="1" AllowAbsent="no">
+      <ComponentGroupRef Id="PluginFiles" />
+      <ComponentRef Id="InstallState" />
+    </Feature>
+
+    <ComponentGroup Id="PluginFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.StagingDir)\**" />
+    </ComponentGroup>
+
+    <Component Id="InstallState" Directory="INSTALLFOLDER" Guid="9CE97128-7797-47B9-9FCA-C773F60511AC" Bitness="always64">
+      <RegistryKey Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName) Legacy" ForceDeleteOnUninstall="yes">
+        <RegistryValue Name="InstallFolder" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+        <RegistryValue Name="Version" Type="string" Value="$(var.ProductVersion)" />
+      </RegistryKey>
+    </Component>
+
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+
+    <?ifdef var.BannerImage ?>
+      <WixVariable Id="WixUIBannerBmp" Value="$(var.BannerImage)" />
+    <?endif ?>
+    <?ifdef var.DialogImage ?>
+      <WixVariable Id="WixUIDialogBmp" Value="$(var.DialogImage)" />
+    <?endif ?>
+    <?ifdef var.ProductIcon ?>
+      <Icon Id="ProductIcon.ico" SourceFile="$(var.ProductIcon)" />
+      <Property Id="ARPPRODUCTICON" Value="ProductIcon.ico" />
+    <?endif ?>
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+  </Package>
+</Wix>

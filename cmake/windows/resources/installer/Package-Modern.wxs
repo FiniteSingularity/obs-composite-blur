@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="$(var.ProductDisplayName)"
+    Manufacturer="$(var.ProductAuthor)"
+    Version="$(var.MsiVersion)"
+    UpgradeCode="ED2469FC-4D7A-46E0-A29F-608171BC0523"
+    Language="1033"
+    Scope="perMachine"
+    InstallerVersion="500">
+
+    <SummaryInformation
+      Description="$(var.ProductDisplayName) $(var.ProductVersion) for OBS Studio 33 and newer"
+      Manufacturer="$(var.ProductAuthor)" />
+
+    <MajorUpgrade
+      AllowSameVersionUpgrades="yes"
+      DowngradeErrorMessage="A newer version of $(var.ProductDisplayName) is already installed." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="ARPURLINFOABOUT" Value="$(var.ProductWebsite)" />
+    <Property Id="ARPHELPLINK" Value="$(var.ProductWebsite)" />
+
+    <Property Id="INSTALLSCOPE" Secure="yes" />
+
+    <Property Id="WIXUI_INSTALLDIR" Value="OBSROOT" />
+
+    <Property Id="OBS_INSTALL_PATH_64">
+      <RegistrySearch Id="ObsInstallPath64" Root="HKLM" Key="SOFTWARE\OBS Studio" Type="raw" Bitness="always64" />
+    </Property>
+    <Property Id="OBS_INSTALL_PATH_32">
+      <RegistrySearch Id="ObsInstallPath32" Root="HKLM" Key="SOFTWARE\OBS Studio" Type="raw" Bitness="always32" />
+    </Property>
+
+    <Property Id="SAVED_INSTALLSCOPE">
+      <RegistrySearch Id="SavedInstallScope" Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName)" Name="InstallScope" Type="raw" Bitness="always64" />
+    </Property>
+    <Property Id="SAVED_OBSROOT">
+      <RegistrySearch Id="SavedObsRoot" Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName)" Name="ObsRoot" Type="raw" Bitness="always64" />
+    </Property>
+    <Property Id="SAVED_PLUGINFOLDER">
+      <RegistrySearch Id="SavedPluginFolder" Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName)" Name="PluginFolder" Type="raw" Bitness="always64" />
+    </Property>
+
+    <StandardDirectory Id="CommonAppDataFolder">
+      <Directory Name="obs-studio">
+        <Directory Name="plugins">
+          <Directory Id="PLUGINFOLDER" Name="$(var.ProductName)" />
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="OBSROOT" Name="obs-studio" />
+    </StandardDirectory>
+
+    <CustomAction Id="SetScopeFromSaved" Property="INSTALLSCOPE" Value="[SAVED_INSTALLSCOPE]" />
+    <CustomAction Id="SetScopeDefault" Property="INSTALLSCOPE" Value="global" />
+    <CustomAction Id="SetObsRootFromSaved" Property="OBSROOT" Value="[SAVED_OBSROOT]" />
+    <CustomAction Id="SetObsRootFromRegistry64" Property="OBSROOT" Value="[OBS_INSTALL_PATH_64]" />
+    <CustomAction Id="SetObsRootFromRegistry32" Property="OBSROOT" Value="[OBS_INSTALL_PATH_32]" />
+    <CustomAction Id="SetPluginFolderFromSaved" Property="PLUGINFOLDER" Value="[SAVED_PLUGINFOLDER]" />
+    <CustomAction Id="SetPluginFolderGlobal" Property="PLUGINFOLDER" Value="[CommonAppDataFolder]obs-studio\plugins\$(var.ProductName)" />
+    <CustomAction Id="SetPluginFolderPortable" Property="PLUGINFOLDER" Value="[OBSROOT]plugins\$(var.ProductName)" />
+
+    <InstallUISequence>
+      <Custom Action="SetScopeFromSaved" After="AppSearch" Condition="NOT INSTALLSCOPE AND SAVED_INSTALLSCOPE" />
+      <Custom Action="SetScopeDefault" After="SetScopeFromSaved" Condition="NOT INSTALLSCOPE" />
+      <Custom Action="SetObsRootFromSaved" After="SetScopeDefault" Condition="NOT OBSROOT AND SAVED_OBSROOT" />
+      <Custom Action="SetObsRootFromRegistry64" After="SetObsRootFromSaved" Condition="NOT OBSROOT AND OBS_INSTALL_PATH_64" />
+      <Custom Action="SetObsRootFromRegistry32" After="SetObsRootFromRegistry64" Condition="NOT OBSROOT AND OBS_INSTALL_PATH_32" />
+      <Custom Action="SetPluginFolderFromSaved" After="SetObsRootFromRegistry32" Condition="NOT PLUGINFOLDER AND SAVED_PLUGINFOLDER" />
+      <Custom Action="SetPluginFolderPortable" After="SetPluginFolderFromSaved" Condition="NOT PLUGINFOLDER AND INSTALLSCOPE = &quot;portable&quot; AND OBSROOT" />
+    </InstallUISequence>
+
+    <InstallExecuteSequence>
+      <Custom Action="SetScopeFromSaved" After="AppSearch" Condition="NOT INSTALLSCOPE AND SAVED_INSTALLSCOPE" />
+      <Custom Action="SetScopeDefault" After="SetScopeFromSaved" Condition="NOT INSTALLSCOPE" />
+      <Custom Action="SetObsRootFromSaved" After="SetScopeDefault" Condition="NOT OBSROOT AND SAVED_OBSROOT" />
+      <Custom Action="SetObsRootFromRegistry64" After="SetObsRootFromSaved" Condition="NOT OBSROOT AND OBS_INSTALL_PATH_64" />
+      <Custom Action="SetObsRootFromRegistry32" After="SetObsRootFromRegistry64" Condition="NOT OBSROOT AND OBS_INSTALL_PATH_32" />
+      <Custom Action="SetPluginFolderFromSaved" After="SetObsRootFromRegistry32" Condition="NOT PLUGINFOLDER AND SAVED_PLUGINFOLDER" />
+      <Custom Action="SetPluginFolderPortable" After="SetPluginFolderFromSaved" Condition="NOT PLUGINFOLDER AND INSTALLSCOPE = &quot;portable&quot; AND OBSROOT" />
+    </InstallExecuteSequence>
+
+    <Feature Id="Main" Title="$(var.ProductDisplayName)" Level="1" AllowAbsent="no">
+      <ComponentGroupRef Id="PluginFiles" />
+      <ComponentRef Id="InstallState" />
+    </Feature>
+
+    <ComponentGroup Id="PluginFiles" Directory="PLUGINFOLDER">
+      <Files Include="$(var.StagingDir)\**" />
+    </ComponentGroup>
+
+    <Component Id="InstallState" Directory="PLUGINFOLDER" Guid="554A2225-2796-4962-B9D0-31D33FC8339F" Bitness="always64">
+      <RegistryKey Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName)" ForceDeleteOnUninstall="yes">
+        <RegistryValue Name="InstallScope" Type="string" Value="[INSTALLSCOPE]" KeyPath="yes" />
+        <RegistryValue Name="ObsRoot" Type="string" Value="[OBSROOT]" />
+        <RegistryValue Name="PluginFolder" Type="string" Value="[PLUGINFOLDER]" />
+        <RegistryValue Name="Version" Type="string" Value="$(var.ProductVersion)" />
+      </RegistryKey>
+    </Component>
+
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+
+    <?ifdef var.BannerImage ?>
+      <WixVariable Id="WixUIBannerBmp" Value="$(var.BannerImage)" />
+    <?endif ?>
+    <?ifdef var.DialogImage ?>
+      <WixVariable Id="WixUIDialogBmp" Value="$(var.DialogImage)" />
+    <?endif ?>
+    <?ifdef var.ProductIcon ?>
+      <Icon Id="ProductIcon.ico" SourceFile="$(var.ProductIcon)" />
+      <Property Id="ARPPRODUCTICON" Value="ProductIcon.ico" />
+    <?endif ?>
+
+    <UIRef Id="WixUI_ObsScope" />
+  </Package>
+</Wix>

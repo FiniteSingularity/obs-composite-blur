@@ -96,8 +96,7 @@
 	"CompositeBlurFilter.VectorBlur.GradientType.CentralLimitDifference"
 
 #define GRADIENT_CHANNEL_RED 0
-#define GRADIENT_CHANNEL_RED_LABEL \
-	"CompositeBlurFilter.VectorBlur.Channel.Red"
+#define GRADIENT_CHANNEL_RED_LABEL "CompositeBlurFilter.VectorBlur.Channel.Red"
 #define GRADIENT_CHANNEL_GREEN 1
 #define GRADIENT_CHANNEL_GREEN_LABEL \
 	"CompositeBlurFilter.VectorBlur.Channel.Green"
@@ -147,8 +146,8 @@ struct composite_blur_filter_data {
 	gs_texrender_t *composite_render;
 
 	// Renderers for vector blur
-	gs_texrender_t* vb_gradient;
-	gs_texrender_t* vb_smoothed_gradient;
+	gs_texrender_t *vb_gradient;
+	gs_texrender_t *vb_smoothed_gradient;
 
 	obs_hotkey_pair_id hotkey;
 
@@ -191,8 +190,8 @@ struct composite_blur_filter_data {
 	float vector_blur_smoothing;
 	int vector_blur_type;
 	float last_vector_blur_amount;
-	obs_weak_source_t* vector_blur_source;
-	gs_eparam_t* param_inactive_radius;
+	obs_weak_source_t *vector_blur_source;
+	gs_eparam_t *param_inactive_radius;
 
 	// Box Blur
 	int passes;
@@ -220,7 +219,7 @@ struct composite_blur_filter_data {
 	gs_eparam_t *param_pixel_sin_theta;
 	gs_eparam_t *param_pixel_cos_rtheta;
 	gs_eparam_t *param_pixel_sin_rtheta;
-	gs_eparam_t* param_pixel_time;
+	gs_eparam_t *param_pixel_time;
 	gs_texrender_t *pixelate_texrender;
 
 	// Radial Blur
@@ -240,11 +239,11 @@ struct composite_blur_filter_data {
 	float tilt_shift_angle;
 
 	// Temporal
-	gs_eparam_t* param_temporal_image;
-	gs_eparam_t* param_temporal_prior_image;
+	gs_eparam_t *param_temporal_image;
+	gs_eparam_t *param_temporal_prior_image;
 	// gs_texture_t* prior_image_texture;
-	gs_eparam_t* param_temporal_current_weight;
-	gs_eparam_t* param_temporal_clear_threshold;
+	gs_eparam_t *param_temporal_current_weight;
+	gs_eparam_t *param_temporal_clear_threshold;
 	float temporal_current_weight;
 	float temporal_clear_threshold;
 	bool temporal_prior_stored;
@@ -303,7 +302,9 @@ struct composite_blur_filter_data {
 	float mask_rect_corner_radius;
 	float mask_rect_feathering;
 	float mask_rect_inv;
-	gs_image_file_t *mask_image;
+
+	gs_texture_t *mask_image_texture;
+	char *mask_image_path;
 
 	// Output Effect Parameters
 	gs_eparam_t *param_output_image;
@@ -346,9 +347,9 @@ static bool setting_effect_mask_modified(obs_properties_t *props,
 static bool setting_blur_types_modified(void *data, obs_properties_t *props,
 					obs_property_t *p,
 					obs_data_t *settings);
-static bool setting_pixelate_animate_modified(obs_properties_t* props,
-					obs_property_t* p,
-					obs_data_t* settings);
+static bool setting_pixelate_animate_modified(obs_properties_t *props,
+					      obs_property_t *p,
+					      obs_data_t *settings);
 static void setting_visibility(const char *prop_name, bool visible,
 			       obs_properties_t *props);
 static void set_blur_radius_settings(const char *name, float min_val,
@@ -358,7 +359,8 @@ static bool settings_blur_area(obs_properties_t *props, obs_data_t *settings);
 static bool settings_blur_directional(obs_properties_t *props);
 static bool settings_blur_zoom(obs_properties_t *props);
 static bool settings_blur_tilt_shift(obs_properties_t *props);
-static bool settings_blur_vector(obs_properties_t* props, composite_blur_filter_data_t* filter);
+static bool settings_blur_vector(obs_properties_t *props,
+				 composite_blur_filter_data_t *filter);
 
 static void apply_effect_mask(composite_blur_filter_data_t *filter);
 static void apply_effect_mask_crop(composite_blur_filter_data_t *filter);
