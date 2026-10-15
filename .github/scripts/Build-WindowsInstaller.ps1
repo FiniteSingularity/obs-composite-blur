@@ -112,7 +112,7 @@ function Build-Installer {
                 "${SourceDir}\WixUI_ObsScope.wxs"
                 "${SourceDir}\ObsScopeDlg.wxs"
             )
-            Localization = @()
+            Localization = @("${SourceDir}\Package-Modern.en-us.wxl")
         }
     }
 
