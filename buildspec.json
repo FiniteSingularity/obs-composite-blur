@@ -38,7 +38,7 @@
     },
     "name": "obs-composite-blur",
     "displayName": "Composite Blur plugin for OBS",
-    "version": "1.6.0",
+    "version": "1.6.1",
     "author": "FiniteSingularity",
     "website": "https://f15y.com",
     "email": "finitesingularityttv@gmail.com"
