@@ -4,7 +4,7 @@
     Name="$(var.ProductDisplayName)"
     Manufacturer="$(var.ProductAuthor)"
     Version="$(var.MsiVersion)"
-    UpgradeCode="ED2469FC-4D7A-46E0-A29F-608171BC0523"
+    UpgradeCode="F1D07ECB-861F-44DF-8296-BFD98130D6A2"
     Language="1033"
     Scope="perMachine"
     InstallerVersion="500">
@@ -13,9 +13,7 @@
       Description="$(var.ProductDisplayName) $(var.ProductVersion) for OBS Studio 33 and newer"
       Manufacturer="$(var.ProductAuthor)" />
 
-    <MajorUpgrade
-      AllowSameVersionUpgrades="yes"
-      DowngradeErrorMessage="A newer version of $(var.ProductDisplayName) is already installed." />
+    <MajorUpgrade AllowDowngrades="yes" />
 
     <MediaTemplate EmbedCab="yes" />
 
@@ -42,6 +40,21 @@
     <Property Id="SAVED_PLUGINFOLDER">
       <RegistrySearch Id="SavedPluginFolder" Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName)" Name="PluginFolder" Type="raw" Bitness="always64" />
     </Property>
+
+    <Property Id="OWN_PRIOR_VERSION">
+      <RegistrySearch Id="OwnPriorVersion" Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName)" Name="Version" Type="raw" Bitness="always64" />
+    </Property>
+    <Property Id="UPGRADE_CODE_FIXED">
+      <RegistrySearch Id="UpgradeCodeFixed" Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName)" Name="UpgradeCodeFixed" Type="raw" Bitness="always64" />
+    </Property>
+
+    <!-- Releases before the fix shared this UpgradeCode with other plugins- only remove our own. -->
+    <Upgrade Id="ED2469FC-4D7A-46E0-A29F-608171BC0523">
+      <UpgradeVersion Minimum="0.0.0" IncludeMinimum="yes" Property="SHARED_CODE_PRODUCTS" />
+    </Upgrade>
+    <SetProperty Id="SHARED_CODE_PRODUCTS" Action="ClearSharedCodeProducts" Value="[UNSET_PLACEHOLDER]"
+                 After="FindRelatedProducts" Sequence="both"
+                 Condition="NOT OWN_PRIOR_VERSION OR UPGRADE_CODE_FIXED" />
 
     <StandardDirectory Id="CommonAppDataFolder">
       <Directory Name="obs-studio">
@@ -93,12 +106,13 @@
       <Files Include="$(var.StagingDir)\**" />
     </ComponentGroup>
 
-    <Component Id="InstallState" Directory="PLUGINFOLDER" Guid="554A2225-2796-4962-B9D0-31D33FC8339F" Bitness="always64">
+    <Component Id="InstallState" Directory="PLUGINFOLDER" Guid="ED13757B-EEFB-4CBC-A944-15659304AB03" Bitness="always64">
       <RegistryKey Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName)" ForceDeleteOnUninstall="yes">
         <RegistryValue Name="InstallScope" Type="string" Value="[INSTALLSCOPE]" KeyPath="yes" />
         <RegistryValue Name="ObsRoot" Type="string" Value="[OBSROOT]" />
         <RegistryValue Name="PluginFolder" Type="string" Value="[PLUGINFOLDER]" />
         <RegistryValue Name="Version" Type="string" Value="$(var.ProductVersion)" />
+        <RegistryValue Name="UpgradeCodeFixed" Type="integer" Value="1" />
       </RegistryKey>
     </Component>
 

@@ -1,7 +1,7 @@
 {
     "display_name": "Composite Blur",
-    "id": "d6c0ba22-dd7e-45bf-9390-9ddf4487d175",
-    "version": "1.6.0",
+    "id": "096a16ec-a07b-488a-953b-69ac1a3abfd1",
+    "version": "1.6.1",
     "authors": ["FiniteSingularity"],
     "name": "obs-composite-blur",
     "description": "A comprehensive blur filter plugin for OBS.",

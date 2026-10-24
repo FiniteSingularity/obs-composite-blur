@@ -4,7 +4,7 @@
     Name="$(var.ProductDisplayName) (Legacy)"
     Manufacturer="$(var.ProductAuthor)"
     Version="$(var.MsiVersion)"
-    UpgradeCode="548FBBAC-DB40-4214-A286-F371BE3B0A9F"
+    UpgradeCode="B9602B97-8DF8-41CE-993D-4803F8355691"
     Language="1033"
     Scope="perMachine"
     InstallerVersion="500">
@@ -13,9 +13,7 @@
       Description="$(var.ProductDisplayName) $(var.ProductVersion) for OBS Studio 28 - 32 (legacy plugin layout)"
       Manufacturer="$(var.ProductAuthor)" />
 
-    <MajorUpgrade
-      AllowSameVersionUpgrades="yes"
-      DowngradeErrorMessage="A newer version of $(var.ProductDisplayName) (Legacy) is already installed." />
+    <MajorUpgrade AllowDowngrades="yes" />
 
     <MediaTemplate EmbedCab="yes" />
 
@@ -31,6 +29,21 @@
     <Property Id="SAVED_INSTALLFOLDER">
       <RegistrySearch Id="SavedInstallFolder" Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName) Legacy" Name="InstallFolder" Type="raw" Bitness="always64" />
     </Property>
+
+    <Property Id="OWN_PRIOR_VERSION">
+      <RegistrySearch Id="OwnPriorVersion" Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName) Legacy" Name="InstallFolder" Type="raw" Bitness="always64" />
+    </Property>
+    <Property Id="UPGRADE_CODE_FIXED">
+      <RegistrySearch Id="UpgradeCodeFixed" Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName) Legacy" Name="UpgradeCodeFixed" Type="raw" Bitness="always64" />
+    </Property>
+
+    <!-- Releases before the fix shared this UpgradeCode with other plugins- only remove our own. -->
+    <Upgrade Id="548FBBAC-DB40-4214-A286-F371BE3B0A9F">
+      <UpgradeVersion Minimum="0.0.0" IncludeMinimum="yes" Property="SHARED_CODE_PRODUCTS" />
+    </Upgrade>
+    <SetProperty Id="SHARED_CODE_PRODUCTS" Action="ClearSharedCodeProducts" Value="[UNSET_PLACEHOLDER]"
+                 After="FindRelatedProducts" Sequence="both"
+                 Condition="NOT OWN_PRIOR_VERSION OR UPGRADE_CODE_FIXED" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="obs-studio" />
@@ -61,10 +74,11 @@
       <Files Include="$(var.StagingDir)\**" />
     </ComponentGroup>
 
-    <Component Id="InstallState" Directory="INSTALLFOLDER" Guid="9CE97128-7797-47B9-9FCA-C773F60511AC" Bitness="always64">
+    <Component Id="InstallState" Directory="INSTALLFOLDER" Guid="D427A9B9-273A-4B5E-9249-5AAE7E2CF16F" Bitness="always64">
       <RegistryKey Root="HKLM" Key="SOFTWARE\$(var.ProductAuthor)\$(var.ProductName) Legacy" ForceDeleteOnUninstall="yes">
         <RegistryValue Name="InstallFolder" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
         <RegistryValue Name="Version" Type="string" Value="$(var.ProductVersion)" />
+        <RegistryValue Name="UpgradeCodeFixed" Type="integer" Value="1" />
       </RegistryKey>
     </Component>
 
